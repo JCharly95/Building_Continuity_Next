@@ -9,38 +9,30 @@ import { Nav, Navbar, NavItem, NavbarToggler, Collapse, NavbarBrand } from "reac
 export default function BarraNavega(){
     // Constante de historial de navegacion
     const navegar = useRouter();
-    // Obteniendo la credencial del usuario logueado
-    const usSession = localStorage.getItem("user");
     // Constante de estado para saber si la barra esta abierta o no
     const [navBarSta, setNavBarSta] = useState(false);
     // Lista de opciones para la barra
-    const opcs = listaOpcNav()
+    const opcs = listaOpcNav();
 
-    // Revisar si hay un usuario logueado con localStorage
-    if(!usSession){
-        navegar.push("/");
-    }else{
-        return (
-            <Navbar className={estilos.barraContainer} light expand="md">
-                <NavbarBrand style={{color: "white"}}> Building Continuity </NavbarBrand>
-                <NavbarToggler onClick={() => { setNavBarSta(!navBarSta) }} />
-                <Collapse isOpen={navBarSta} navbar>
-                    <Nav className="mr-auto">
-                        {
-                            opcs.map((item, index) => {
-                                return (
-                                    <NavItem key={"ItemLink"+index}>
-                                        <Link href={item.url} className={estilos.enlace}> {item.title} </Link>
-                                    </NavItem>
-                                );
-                            })
-                        }
-                    </Nav>
-                </Collapse>
-            </Navbar>
-        );
-    }
-    return 0;
+    return (
+        <Navbar className={estilos.barraContainer} light expand="md">
+            <NavbarBrand style={{color: "white"}}> Building Continuity </NavbarBrand>
+            <NavbarToggler onClick={() => { setNavBarSta(!navBarSta) }} />
+            <Collapse isOpen={navBarSta} navbar>
+                <Nav className="mr-auto">
+                    {
+                        opcs.map((item, index) => {
+                            return (
+                                <NavItem key={"ItemLink"+index}>
+                                    <Link href={item.url} className={estilos.enlace}> {item.title} </Link>
+                                </NavItem>
+                            );
+                        })
+                    }
+                </Nav>
+            </Collapse>
+        </Navbar>
+    );
 }
 
 /* 
@@ -51,7 +43,7 @@ function listaOpcNav(){
     const listaOpc = [
         {
             title: "Grafica",
-            url: "/"
+            url: "/pages/graphics"
         },
         {
             title: "Perfil",

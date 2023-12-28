@@ -1,23 +1,22 @@
 'use client';
 import axios from 'axios';
-import estilosGen from './page.module.css';
 import estilosEspe from './page.module.css';
 import { useRouter } from 'next/navigation';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import RecuperContra from './components/recoverPass/page';
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, ModalHeader, ModalBody, Alert } from 'reactstrap';
+import { Button, Modal, ModalHeader, ModalBody, Alert } from 'reactstrap';
 import { AlertTriangle, AlertCircle, Eye, EyeOff } from 'react-feather';
 
 export default function LoginPage(){
     // Banderas de verificacion de los campos
-    let busUserBD= false, busContraBD= false, namUser="";
+    let busUserBD = false, busContraBD = false, namUser = "";
     // Variable de estado para la obtencion de la navegacion y redireccionamiento usando el react-router
     const navegar = useRouter();
     // Variable de estado para mostrar el campo de la contraseña
-    const [viewPass, setViewPas] = useState("password")
+    const [viewPass, setViewPas] = useState("password");
     // Variable de estado para la obtencion de los usuarios en la BD con axios
-    const [usersBD, setUsersBD] = useState([1]);
+    const [usersBD, setUsersBD] = useState([]);
     // Variable de estado para la apertura o cierre del modal de aviso de errores
     const [modalError, setModalError] = useState(false);
     // Variable de estado para la apertura o cierre del modal de avisos
@@ -83,26 +82,25 @@ export default function LoginPage(){
         // Solo si la condicion fue evaluada, se retorno como 1 y se obtuvo un mensaje de aviso satisfactorio se procedera como un aviso regular
         if(((valiCamposResp[0].condicion == 1) && (valiCamposResp[0].mensaje.includes("Direccion Aceptada"))) && ((valiCamposResp[1].condicion == 1) && (valiCamposResp[1].mensaje.includes("Contraseña Aceptada")))){
             // Si se validaron de manera efectiva los datos, se busca el usuario en el arreglo de valores de la BD
-            usersArr.map((userBus) => {
+            usersArr.forEach((userBus) => {
                 if((userBus.user === `${userRef.current.value}`) && (userBus.contra === `${passRef.current.value}`)){
                     busUserBD = true;
                     namUser = userBus.nombre;
                     busContraBD = true;
                 }
-                return 0;
             });
             redireccionar();
         }else{
             // Si ambos campos arrojaron un error se concateneran los avisos retornados
             if((valiCamposResp[0].condicion == 2) && (valiCamposResp[1].condicion == 2)){
-                setModalError(valiCamposResp[0].mensaje+"\n"+valiCamposResp[1].mensaje);
+                setModalMsg(valiCamposResp[0].mensaje+"\n"+valiCamposResp[1].mensaje);
             }
             // Si no, se cargara el resultado de los mismos de forma independiente
             if(valiCamposResp[0].condicion == 2){
-                setModalError(valiCamposResp[0].mensaje);
+                setModalMsg(valiCamposResp[0].mensaje);
             }
             if(valiCamposResp[1].condicion == 2){
-                setModalError(valiCamposResp[1].mensaje);
+                setModalMsg(valiCamposResp[1].mensaje);
             }
             // Y se abrira el modal de errores
             OpenCloseError();
@@ -121,12 +119,12 @@ export default function LoginPage(){
             // Caso: Usuario no encontrado
             if(!busUserBD){
                 setModalMsg("Error: Usuario no encontrado");
-                AbrCerrError();
+                OpenCloseError();
             }
             // Caso: Usuario encontrado pero contraseña invalida
             if(busUserBD && !busContraBD){
                 setModalMsg("Error: La contraseña es incorrecta");
-                AbrCerrError();
+                OpenCloseError();
             }
         }
     }
@@ -140,7 +138,9 @@ export default function LoginPage(){
             passLen: `${passRef.current.value}`.length,
             acceso : fechLastAcc
         }
-        localStorage.setItem(clave, JSON.stringify(session))
+        try {
+            localStorage.setItem(clave, JSON.stringify(session)) || "";
+        } catch (error) {}
         // Agregar el acceso a la base de datos; Preparar el paquete de informacion de XMLRequest
         let infoCaptu = new FormData();
         infoCaptu.append('emaUser', user);
@@ -169,12 +169,12 @@ export default function LoginPage(){
     function contextMenu(evento){
         evento.preventDefault()
         setModalMsg("Error: Accion no valida");
-        AbrCerrError();
+        OpenCloseError();
     }
 
     return(
         <div className={estilosEspe.Auth_form_container} onContextMenu={contextMenu}>
-            <form className={estilosGen.Auth_form} onSubmit={veriForm}>
+            <form className={estilosEspe.Auth_form} onSubmit={veriForm}>
                 <div className={estilosEspe.Auth_form_content}>
                     <h3 className={estilosEspe.Auth_form_title}> Acceder </h3>
                     <div className="form-group mt-3">
@@ -193,7 +193,9 @@ export default function LoginPage(){
                         </div>
                     </div>
                     <div className="form-group d-grid gap-2 mt-3">
-                        <button type="submit" className="btn btn-primary" onClick={veriForm}> Acceder </button>
+                        <Button color="primary" onClick={veriForm} type="submit">
+                            <span>Acceder</span>
+                        </Button>
                     </div>
                     <div className="form-group mt-2">
                         <RecuperContra/>
@@ -201,8 +203,8 @@ export default function LoginPage(){
                 </div>
             </form>
             <div id="ModalError">
-                <Modal isOpen={modalError} toggle={AbrCerrError}>
-                    <ModalHeader toggle={AbrCerrError}>
+                <Modal isOpen={modalError} toggle={OpenCloseError}>
+                    <ModalHeader toggle={OpenCloseError}>
                         Error <AlertTriangle color="red" size={30} />
                     </ModalHeader>
                     <ModalBody>
@@ -213,8 +215,8 @@ export default function LoginPage(){
                 </Modal>
             </div>
             <div id="ModalAdvice">
-                <Modal isOpen={modalAdv} toggle={AbrCerAdv}>
-                    <ModalHeader toggle={AbrCerAdv}>
+                <Modal isOpen={modalAdv} toggle={OpenCloseAvisos}>
+                    <ModalHeader toggle={OpenCloseAvisos}>
                         Bienvenido <AlertCircle color="blue" size={30} />
                     </ModalHeader>
                     <ModalBody>

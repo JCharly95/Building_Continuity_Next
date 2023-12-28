@@ -1,4 +1,4 @@
-import BarraNavega from './components/navBar/page';
+import BarraNavega from '../components/navBar/page';
 
 export default function PageLayout({ children }){
     return (
