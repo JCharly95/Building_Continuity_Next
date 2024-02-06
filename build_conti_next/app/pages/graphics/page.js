@@ -1,10 +1,5 @@
 'use client';
 import axios from 'axios';
-import jsPDF from 'jspdf';
-//import Chart from 'react-apexcharts';
-import dynamic from 'next/dynamic';
-const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
-import html2canvas from 'html2canvas';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
 import estilosGen from '../../globals.css';
@@ -18,10 +13,17 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Modal, ModalHeader, ModalBody, Alert } from "reactstrap";
 import { AlertTriangle, AlertCircle, Calendar } from 'react-feather';
 
-export default function Grafica_Page({ props }) {
+export default function Grafica_Page() {
     //----------------------------Estableciendo las variables de trabajo--------------------------------------
+    // Constante de historial de navegacion
+    const navegar = useRouter();
     // Variable de retorno del contenido de la pagina
     let page = <></>;
+    // Obteniendo la credencial del usuario logueado; Para nextjs hay que usar una forma diferente para el localstorage
+    let usSession;
+    try {
+        usSession = localStorage.getItem("user") || "";
+    } catch (error) {}
     // Variable de estado para la obtencion de registros
     const [metadata, setMetadata] = useState([1]);
     // Establecer las variables de las fechas
@@ -31,13 +33,6 @@ export default function Grafica_Page({ props }) {
     const [tipInfoBus, setTipInfoBus] = useState("404");
     // Los registros suelen estar desde el 15 de marzo hasta el 14 de julio
     const [listaSenso, setListaSenso] = useState([1]);
-    // Constante de historial de navegacion
-    const navegar = useRouter();
-    // Obteniendo la credencial del usuario logueado; Para nextjs hay que usar una forma diferente para el localstorage
-    let usSession;
-    try {
-        usSession = localStorage.getItem("user") || "";
-    } catch (error) {}
     // Variable de estado para la apertura o cierre del modal de aviso de errores
     const [modalError, setModalError] = useState(false);
     // Variable de estado para la apertura o cierre del modal de avisos
@@ -161,7 +156,7 @@ export default function Grafica_Page({ props }) {
         OpenCloseError();
     }
 
-    // Buscar los elementos por classname para encontrar el texto de carga de informacion de la grafica
+    /* Buscar los elementos por classname para encontrar el texto de carga de informacion de la grafica
     useEffect(() => {
         let elementos = document.getElementsByClassName("apexcharts-text");
         for(const element of elementos){
@@ -181,7 +176,7 @@ export default function Grafica_Page({ props }) {
                 setIconCh();
             }
         }
-    }, [iconCh]);
+    }, [iconCh]);*/
 
     //-----------------------------Codigo para el funcionamiento de Inactividad------------------------------------
     useEffect(() => {
@@ -298,7 +293,7 @@ export default function Grafica_Page({ props }) {
         }
 
         //----------------Preparacion de las opciones de configuracion para la grafica------------------------
-        const options = {
+        /*const options = {
             chart: {
                 animations: {
                     initialAnimation: {
@@ -413,7 +408,7 @@ export default function Grafica_Page({ props }) {
             noData: {
                 text: 'Preparando información, aguarde por favor...'
             }
-        };
+        };*/
         //----------------------------------------------------------------------------------------------------
 
         //----------------Preparacion del filtro de busqueda de informacion para el usuario-------------------
@@ -493,7 +488,7 @@ export default function Grafica_Page({ props }) {
         }
 
         // Cargando los valores de la pagina en caso de estar logueado
-        page = <section>
+        page = <section onContextMenu={contextMenu}>
             <div className='container-fluid border mt-1'>
                 <div className='row align-items-center border pt-3 pb-3 text-center'>
                     <div className='col-sm-auto mt-2'>
@@ -545,7 +540,9 @@ export default function Grafica_Page({ props }) {
                     {iconCh}
                 </div>
                 <div id='areaGraf' className='row align-items-center border pt-3 pb-5 mb-3'>
-                    <Chart options={options} series={options.series} type="line" width="100%" height="280%" />
+                {   /*
+                    <Chart options={options} series={options.series} type="line" width="100%" height="280%" /> */
+                }
                 </div>
                 <div id="ModalError">
                     <Modal isOpen={modalError} toggle={OpenCloseError}>

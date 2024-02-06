@@ -18,6 +18,7 @@ export default function RecuPassPage(){
     const apePRef = useRef(null);
     const apeMRef = useRef(null);
     const emaRef = useRef(null);
+    const passRef = useRef(null);
     // Bandera de busqueda de usuario
     let busUser = false;
     
@@ -53,7 +54,7 @@ export default function RecuPassPage(){
         // Prevenir el envio por defecto
         evento.preventDefault();
         // Obteniendo la respuesta de la validacion de los campos
-        let valiCamposResp = validarCampos(`${idRef.current.value}`, `${nomRef.current.value}`, `${apePRef.current.value}`, `${apeMRef.current.value}`, `${emaRef.current.value}`);
+        let valiCamposResp = validarCampos(`${idRef.current.value}`, `${nomRef.current.value}`, `${apePRef.current.value}`, `${apeMRef.current.value}`, `${emaRef.current.value}`, `${passRef.current.value}`);
         /*  Posicion 0: objeto de respuesta del codigo, 
             posicion 1: objeto de respuesta del nombre, 
             posicion 2: objeto de respuesta del apellido paterno, 
@@ -169,14 +170,14 @@ export default function RecuPassPage(){
                         </div>
                         <div className="row justify-content-center">
                             <div className='col-md-10 offset-md-1'>
-                                <label htmlFor="ape-paterno" className="col-form-label">Primer Apellido:</label>
+                                <label htmlFor="ape-paterno" className="col-form-label">Apellido Paterno:</label>
                                 <input type="text" className="form-control" ref={apePRef} id="ape-paterno" name="apePat" />
                             </div>
                             <div className='col-md-1' />
                         </div>
                         <div className="row justify-content-center">
                             <div className='col-md-10 offset-md-1'>
-                                <label htmlFor="ape-materno" className="col-form-label">Segundo Apellido:</label>
+                                <label htmlFor="ape-materno" className="col-form-label">Apellido Materno:</label>
                                 <input type="text" className="form-control" ref={apeMRef} id="ape-materno" name="apeMat" />
                             </div>
                             <div className='col-md-1' />
@@ -185,6 +186,13 @@ export default function RecuPassPage(){
                             <div className='col-md-10 offset-md-1'>
                                 <label htmlFor="dir-correo" className="col-form-label">Correo:</label>
                                 <input type="text" className="form-control" ref={emaRef} id="dir-correo" name="correo" />
+                            </div>
+                            <div className='col-md-1' />
+                        </div>
+                        <div className="row justify-content-center">
+                            <div className='col-md-10 offset-md-1'>
+                                <label htmlFor="val-pass" className="col-form-label">Contraseña:</label>
+                                <input type="text" className="form-control" ref={passRef} id="val-pass" name="pass" />
                             </div>
                             <div className='col-md-1' />
                         </div>
@@ -219,6 +227,41 @@ export default function RecuPassPage(){
             </Modal>
         </div>
     );
+
+    // Seccion de funciones asincronas
+    /** Funcion de busqueda de usuario en la base de datos
+     * @param {string} dirEma Direccion de Correo del Usuario
+     * @param {string} usPass Contraseña del Usuario */
+    async function buscarUsuario(dirEma, usPass){
+        try {
+            const consulta = await axios.post('http://localhost/Proyectos_Propios/BuildContiBack/index.php',{
+                tipo_consulta: 'buscarUsuario',
+                correo: dirEma,
+                contra: usPass
+            },{
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            // Una vez que el usuario fue encontrado en la base de datos se procedera con el acceso
+            if(consulta.data == "Usuario Encontrado")
+                acceder("user", dirEma, usPass.length())
+        } catch (error) {
+            // Si ocurrio un error en la peticion de busqueda se mostrará aqui
+            if (error.response) {
+                // Primer caso, el servidor no encontro el usuario con los datos ingresados (Error contemplado)
+                setModalErrMsg("Error: Acceso Denegado, revise su información");
+            } else if (error.request) {
+                // Segundo caso, el cliente no se pudo contactar con el servidor o este no respondio (Error controlado)
+                setModalErrMsg("Error: Servicio no disponible, favor de intentar mas tarde");
+            } else {
+                // Tercer caso, ocurrio un error en la disponibilidad de la respuesta del servidor (Error no contemplado y desconocido)
+                setModalErrMsg("Error: Servicio no disponible, favor de intentar mas tarde");
+            }
+        }
+    }
+    
+    
 }
 
 /** Funcion para validacion de los campos

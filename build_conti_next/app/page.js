@@ -1,5 +1,8 @@
 'use client';
 import axios from 'axios';
+//import { buscarUsuario } from './api/buscarUserBD';
+import { validarCorreo } from './components/validations/valiEmail';
+import { validarPassword } from './components/validations/valiPass';
 import estilosEspe from './page.module.css';
 import { useRouter } from 'next/navigation';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -9,14 +12,10 @@ import { Button, Modal, ModalHeader, ModalBody, Alert } from 'reactstrap';
 import { AlertTriangle, AlertCircle, Eye, EyeOff } from 'react-feather';
 
 export default function LoginPage(){
-    // Banderas de verificacion de los campos
-    let busUserBD = false, busContraBD = false, namUser = "";
     // Variable de estado para la obtencion de la navegacion y redireccionamiento usando el react-router
     const navegar = useRouter();
     // Variable de estado para mostrar el campo de la contraseña
     const [viewPass, setViewPas] = useState("password");
-    // Variable de estado para la obtencion de los usuarios en la BD con axios
-    const [usersBD, setUsersBD] = useState([]);
     // Variable de estado para la apertura o cierre del modal de aviso de errores
     const [modalError, setModalError] = useState(false);
     // Variable de estado para la apertura o cierre del modal de avisos
@@ -26,24 +25,9 @@ export default function LoginPage(){
     // Variables de referencia para la obtencion de valores de los campos del login
     const userRef = useRef(null);
     const passRef = useRef(null);
-    // Arreglo que almacenara los valores ordenados de la consulta obtenida por axios
-    const usersArr = [];
-
-    // Obtener a los usuarios de la BD usando una consulta get con axios
-    useEffect(() => {
-        const obteInfoUser = async (estado) => {
-            try {
-                const peticion = await axios.get('https://app.buildingcontinuity.com.mx/php/data.php?tipo_consulta=usuarios');
-                estado(peticion.data);
-            } catch (error) {
-                console.log("Ocurrio un error en la información");
-            }
-        }
-        obteInfoUser(setUsersBD);
-    }, []);
 
     // Agregar un listener para la deteccion de las teclas F12 y ContextMenu
-    useEffect(() => {
+    /*useEffect(() => {
         document.addEventListener('keydown', (event) => {
             if(event.key==="F12" || event.key==="ContextMenu"){
                 event.preventDefault()
@@ -51,7 +35,7 @@ export default function LoginPage(){
                 setModalError(!modalError);
             }
         }, true)
-    }, [modalError])
+    }, [modalError])*/
 
     // Abrir/Cerrar modal de errores
     function OpenCloseError() {
@@ -63,105 +47,102 @@ export default function LoginPage(){
         setModalAdv(!modalAdv);
     }
 
-    // Pasar el resultado de la consulta axios a un arreglo para operar con la informacion
-    usersBD.map((usuario) => (
-        usersArr.push({
-            user: `${usuario.Correo}`,
-            contra: `${usuario.Contra}`,
-            nombre: `${usuario.Nombre}`
-        })
-    ));
+    /** Funcion para validacion de los campos
+     * @param {string} correo Direccion de correo ingresada
+     * @param {string} contra Contraseña ingresada
+     * @returns boolean */
+    function valiCampos(correo, contra){
+        // Banderas de validaciones; validacion general, validacion de correo y validacion de contraseña
+        let bandeVali = false, bandeValiEma = false, bandeValiPass = false;
+        // Obtener los objetos de respuesta de las validaciones de los campos realizadas de forma externa
+        const valiCorreo = validarCorreo(correo);
+        const valiContra = validarPassword(contra);
+        // Validacion de correo
+        switch(valiCorreo.getCondicion){
+            case 0:
+                setModalMsg("La validacion del correo no fue realizada");
+                break;
+            case 1:
+                bandeValiEma = true;
+                break;
+            case 2:
+                setModalMsg(valiCorreo.getMensaje)
+                break;
+        }
+        // Validacion de la contraseña
+        switch(valiContra.getCondicion){
+            case 0:
+                setModalMsg("La validacion de la contraseña no fue realizada");
+                break;
+            case 1:
+                bandeValiPass = true;
+                break;
+            case 2:
+                if(!valiCorreo.getMensaje.includes("Direccion Aceptada")){
+                    setModalMsg(valiCorreo.getMensaje + "\n" + valiContra.getMensaje);
+                }else{
+                    setModalMsg(valiContra.getMensaje);
+                }
+                break;
+        }
+        // Si ambos campos se validaron correctamente se regresara un valor verdadero
+        if(bandeValiEma && bandeValiPass){
+            bandeVali = true;
+        }
+        return bandeVali;
+    }
 
-    // Verificacion de envio del formulario de acceso
+    /** Verificacion de envio del formulario de acceso
+     * @param {Event} evento Evento de verificacion del formulario previo al acceso del sistema */
     function veriForm(evento) {
         // Evitar lanzar el formulario por defecto
         evento.preventDefault();
+        // Establecer los datos de entrada en constantes para mejorar el trabajo de codigo
+        const dirEmaUs = `${userRef.current.value}`;
+        const valPassUs = `${passRef.current.value}`;
         // Obteniendo la respuesta de la validacion de los campos
-        let valiCamposResp = valiCampos(`${userRef.current.value}`,`${passRef.current.value}`);
-        // Posicion 0: objeto de respuesta del correo, posicion 1: objeto de respuesta de la contraseña
-        // Solo si la condicion fue evaluada, se retorno como 1 y se obtuvo un mensaje de aviso satisfactorio se procedera como un aviso regular
-        if(((valiCamposResp[0].condicion == 1) && (valiCamposResp[0].mensaje.includes("Direccion Aceptada"))) && ((valiCamposResp[1].condicion == 1) && (valiCamposResp[1].mensaje.includes("Contraseña Aceptada")))){
-            // Si se validaron de manera efectiva los datos, se busca el usuario en el arreglo de valores de la BD
-            usersArr.forEach((userBus) => {
-                if((userBus.user === `${userRef.current.value}`) && (userBus.contra === `${passRef.current.value}`)){
-                    busUserBD = true;
-                    namUser = userBus.nombre;
-                    busContraBD = true;
-                }
-            });
-            redireccionar();
+        const valiCamposResp = valiCampos(dirEmaUs, valPassUs);
+        // Si se validaron los campos correctamente se procedera con la preparacion de acceso
+        if(valiCamposResp){
+            // Primero se enviará a la funcion asincrona para la busqueda del usuario en la base de datos
+            buscarUsuario(dirEmaUs, valPassUs);
         }else{
-            // Si ambos campos arrojaron un error se concateneran los avisos retornados
-            if((valiCamposResp[0].condicion == 2) && (valiCamposResp[1].condicion == 2)){
-                setModalMsg(valiCamposResp[0].mensaje+"\n"+valiCamposResp[1].mensaje);
-            }
-            // Si no, se cargara el resultado de los mismos de forma independiente
-            if(valiCamposResp[0].condicion == 2){
-                setModalMsg(valiCamposResp[0].mensaje);
-            }
-            if(valiCamposResp[1].condicion == 2){
-                setModalMsg(valiCamposResp[1].mensaje);
-            }
-            // Y se abrira el modal de errores
+            // Si no, se abrira el modal de avisos con los errores contenidos
             OpenCloseError();
         }
     }
 
-    // Funcion de redireccionamiento acorde a la validacion de campos del formulario
-    function redireccionar() {
-        if(busUserBD && busContraBD){
-            acceder("user", `${userRef.current.value}`);
-            setModalMsg(`Bienvenido ${namUser}`);
-            OpenCloseAvisos();
-            setTimeout(() => (navegar.push('/pages/graphics')), 2000);
-        }
-        else{
-            // Caso: Usuario no encontrado
-            if(!busUserBD){
-                setModalMsg("Error: Usuario no encontrado");
-                OpenCloseError();
-            }
-            // Caso: Usuario encontrado pero contraseña invalida
-            if(busUserBD && !busContraBD){
-                setModalMsg("Error: La contraseña es incorrecta");
-                OpenCloseError();
-            }
-        }
-    }
-
-    // Si el usuario se logueo de manera satisfactoria se crea un elemento de localStorage para su navegacion
-    function acceder(clave, user) {
-        const fechLastAcc = new Date();
+    /** Funcion de Acceso al Sistema (Login)
+     * @param {string} clave Identificador de Cookie o Session
+     * @param {string} emaUser Valor Direccion de Correo de Acceso
+     * @param {number} passLongi Longitud de la Contraseña */
+    function acceder(clave, emaUser, passLongi) {
+        // Creando el objeto de sesion
         const session = {
-            info: user,
-            nameUs: namUser,
-            passLen: `${passRef.current.value}`.length,
-            acceso : fechLastAcc
+            info: emaUser,
+            passLen: passLongi,
+            acceso : getFecha()
         }
         try {
+            // Crear la sesion de acceso para el cliente
             localStorage.setItem(clave, JSON.stringify(session)) || "";
-        } catch (error) {}
-        // Agregar el acceso a la base de datos; Preparar el paquete de informacion de XMLRequest
-        let infoCaptu = new FormData();
-        infoCaptu.append('emaUser', user);
-        infoCaptu.append('ultimoAcceso', getFecha(fechLastAcc));
-        // Este sera el formato a usar de axios para todas las consultas que alteren la base de datos
-        axios({
-            method: 'post',
-            url: 'https://app.buildingcontinuity.com.mx/php/data.php?tipo_consulta=addLastAccess',
-            data: infoCaptu,
-            config: { headers: {'Content-Type': 'multipart/form-data' }}
-        });
+            // Establecer el acceso del usuario en la base de datos
+            setAcceso(session.info, session.acceso);
+        } catch (error) {
+            setModalMsg("Error en el acceso del sistema, favor de intentarlo mas tarde");
+            OpenCloseError();
+        }
     }
 
     // Mostrar/Ocultar contraseña
     function verPass(){
-        if(viewPass === "password"){
-            setViewPas("text")
-        }
-
-        if(viewPass === "text"){
-            setViewPas("password")
+        switch(viewPass){
+            case "password":
+                setViewPas("text");
+                break;
+            case "text":
+                setViewPas("password");
+                break;
         }
     }
 
@@ -228,181 +209,125 @@ export default function LoginPage(){
             </div>
         </div>
     );
-}
 
-/** Funcion para validacion de los campos
- * @param {string} correo 
- * @param {string} contra 
- * @returns {[object]} */
-function valiCampos(correo, contra){
-    /*Posibles condiciones de respuesta:
-    0: Retorno indefinido: la condicion no fue evaluada, por lo que es un error
-    1: Retorno satisfactorio: condicion evaluada y retorna como aviso
-    2: Retorno erroneo: condicion evaluada y se retorna como error*/
-    // Objetos de respuesta
-    let respCorreo = {
-        'condicion': 0,
-        'mensaje': ""
-    }
-    let respContra = {
-        'condicion': 0,
-        'mensaje': ""
-    }
-    // Expresion regular para correo
-    const expreCorr = /^\w+([.-_+]?\w+)*@\w+([.-]?\w+)*(\.\w{2,10})+$/
-    // Expresion regular para buscar espacios
-    const expreEspa = /\s+/g
-    // Expresiones regulares para la filtracion de inyecciones SQL
-    // Buscar/remover comillas o punto y coma
-    const exprePuntu = /(')|(;)|(';)/g
-    // Buscar numero=numero o 1=1
-    const expreIgual = /(\d=\d)|(=)/g
-    // Expresion regular para remover consultas tipicas implementadas en SQL para inyecciones
-    const expreQueSQL = /(SELECT)|(Select)|(select)|(UNION)|(Union)|(union)|(FROM)|(From)|(from)|(JOIN)|(Join)|(join)|(PASSWORD)|(Password)|(password)|(PASS)|(Pass)|(pass)|(PASSWD)|(Passwd)|(passwd)|(DROP)|(Drop)|(drop)|(TABLE)|(Table)|(table)|(DELETE)|(Delete)|(delete)|(INSERT)|(Insert)|(insert)|(UPDATE)|(Update)|(update)|(USERS)|(Users)|(users)|(DATABASE)|(Database)|(database)|(WHERE)|(Where)|(where)|(AND)|(And)|(and)|(OR)|(Or)|(or)|(INNER)|(Inner)|(inner)|(LEFT)|(Left)|(left)|(RIGHT)|(Right)|(right)/g
-
-    // Validacion de campos; Parte 1: Evaluacion de campos vacios
-    if(!correo && !contra){
-        respCorreo.condicion = 2;
-        respCorreo.mensaje = "Error: No se ingreso información, favor de ingresarla";
-        respContra.condicion = 2;
-        respContra.mensaje = "Error: No se ingreso información, favor de ingresarla";
-    }else{
-        // Validacion de campos; Parte 2: Evaluacion de direccion de correo
-        // Validacion de campos; Parte 2.1: Evaluacion de contenido del campo
-        if(!correo){
-            respCorreo.condicion = 2;
-            respCorreo.mensaje = "Error: Favor de ingresar su dirección de correo";
-        }else{
-            // Validacion de campos; Parte 2.2: Busqueda de espacios en la direccion de correo
-            if(expreEspa.test(correo)){
-                respCorreo.condicion = 2;
-                respCorreo.mensaje = "Error: Dirección de correo invalida";
-            }else{
-                // Validacion de campos; Parte 2.3: Busqueda de caracteres de agrupacion en la direccion de correo
-                if(correo.includes("(") || correo.includes(")") || correo.includes("()") || correo.includes("{") || correo.includes("}") || correo.includes("{}") || correo.includes("[") || correo.includes("]") || correo.includes("[]")){
-                    respCorreo.condicion = 2;
-                    respCorreo.mensaje = "Error: Dirección de correo invalida";
-                }else{
-                    // Validacion de campos; Parte 2.4: Evaluacion de la estructura de la dirección (cmp con RegeExp)
-                    if(expreCorr.test(correo)){
-                        respCorreo.condicion = 1;
-                        respCorreo.mensaje = "Direccion Aceptada";
-                    }else{
-                        /* Si no se valido correctamente el correo, se interpretará que se tiene algun elemento extraño para inyeccion SQL, por lo que se procedera con la sanitizacion, validacion y posterior evaluacion de la direccion*/
-                        // Validacion de campos; Parte 2.4.1: Sanitizacion de comillas y punto/coma
-                        if(exprePuntu.test(correo)){
-                            correo=correo.replace(exprePuntu, "");
-                        }
-                        // Validacion de campos; Parte 2.4.2: Sanitizacion de igualdades
-                        if(expreIgual.test(correo)){
-                            correo=correo.replace(expreIgual, "");
-                        }
-                        // Validacion de campos; Parte 2.4.3: Sanitizacion de palabras reservadas SQL
-                        if(expreQueSQL.test(correo)){
-                            correo=correo.replace(expreQueSQL, "");
-                        }
-                        // Validacion de campos; Parte 2.4.4: Reevaluación de la direccion de correo
-                        if(expreCorr.test(correo)){
-                            respCorreo.condicion = 1;
-                            respCorreo.mensaje = "Direccion Sanitizada Aceptada";
-                        }else{
-                            respCorreo.condicion = 2;
-                            respCorreo.mensaje = "Error: Su dirección de correo no es valida, favor de revisarla";
-                        }
-                    }
+    // Seccion de funciones asincronas
+    /** Funcion de busqueda de usuario en la base de datos
+     * @param {string} dirEma Direccion de Correo del Usuario
+     * @param {string} usPass Contraseña del Usuario */
+    async function buscarUsuario(dirEma, usPass){
+        try {
+            const consulta = await axios.post('http://localhost/Proyectos_Propios/BuildContiBack/index.php',{
+                tipo_consulta: 'buscarUsuario',
+                correo: dirEma,
+                contra: usPass
+            },{
+                headers: {
+                    'Content-Type': 'multipart/form-data'
                 }
-            }
-        }
-
-        // Validacion de campos; Parte 3: Evaluacion de contraseña
-        // Validacion de campos; Parte 3.1: Evaluacion de contenido del campo
-        if(!contra){
-            respContra.condicion = 2;
-            respContra.mensaje = "Error: Favor de ingresar su contraseña";
-        }else{
-            // Validacion de campos; Parte 3.2: Evaluacion de espacios
-            contra = contra.replace(expreEspa, "");
-            // Si se borraron todos los espacios y el campo se quedo vacio se mandara un error
-            if(contra.length === 0 || contra === ""){
-                respContra.condicion = 2;
-                respContra.mensaje = "Error: Contraseña incorrecta";
-            }else{
-                // Validacion de campos; Parte 3.3: Busqueda de mayusculas
-                if(!/[A-Z]/g.test(contra)){
-                    respContra.condicion = 2;
-                    respContra.mensaje = "Error: Favor de revisar el contenido de su contraseña";
-                }else{
-                    // Validacion de campos; Parte 3.4: Busqueda de numeros
-                    if(!/\d/g.test(contra)){
-                        respContra.condicion = 2;
-                        respContra.mensaje = "Error: Favor de revisar el contenido de su contraseña";
-                    }else{
-                        // Validacion de campos; Parte 3.5: Busqueda de caracteres especiales
-                        if(!/\W/g.test(contra)){
-                            respContra.condicion = 2;
-                            respContra.mensaje = "Error: Favor de revisar el contenido de su contraseña";
-                        }else{
-                            /* Dado que la contraseñas son mas dificiles de evaluar, porque no hay una expresion regular establecida, de igual manera se les realizara el proceso de sanitizacion de elementos.
-                            Por consiguiente, las contraseñas no podran incluir los siguientes caracteres: ' ; =
-                            Ademas, a diferencia del correo, en este caso se procedera directo con una sanitizacion y posterior evaluacion.*/
-                            // Validacion de campos; Parte 3.6.1: Sanitizacion de comillas y punto/coma
-                            if(exprePuntu.test(contra)){
-                                contra=contra.replace(contra, "");
-                            }
-                            // Validacion de campos; Parte 3.6.2: Sanitizacion de igualdades
-                            if(expreIgual.test(contra)){
-                                contra=contra.replace(expreIgual, "");
-                            }
-                            // Validacion de campos; Parte 3.6.3: Sanitizacion de palabras reservadas SQL
-                            if(expreQueSQL.test(contra)){
-                                contra=contra.replace(expreQueSQL, "");
-                                respContra.condicion = 1;
-                                respContra.mensaje = "Contraseña Sanitizada Aceptada";
-                            }else{
-                                respContra.condicion = 1;
-                                respContra.mensaje = "Contraseña Aceptada";
-                            }
-                        }
-                    }
-                }
+            });
+            // Una vez que el usuario fue encontrado en la base de datos se procedera con el acceso
+            if(consulta.data == "Usuario Encontrado")
+                acceder("user", dirEma, usPass.length())
+        } catch (error) {
+            // Si ocurrio un error en la peticion de busqueda se mostrará aqui
+            if (error.response) {
+                // Primer caso, el servidor no encontro el usuario con los datos ingresados (Error contemplado)
+                setModalMsg("Error: Acceso Denegado, revise su información");
+            } else if (error.request) {
+                // Segundo caso, el cliente no se pudo contactar con el servidor o este no respondio (Error controlado)
+                setModalMsg("Error: Servicio no disponible, favor de intentar mas tarde");
+            } else {
+                // Tercer caso, ocurrio un error en la disponibilidad de la respuesta del servidor (Error no contemplado y desconocido)
+                setModalMsg("Error: Servicio no disponible, favor de intentar mas tarde");
             }
         }
     }
-    return [respCorreo, respContra];
+
+    /** Funcion para actualizar el ultimo acceso del usuario en la BD y darle paso al sistema o rechazarlo si no funciono
+     * @param {string} email Direccion de correo para establecer el acceso
+     * @param {string} fechAcc Fecha del cliente en su ultimo acceso */
+    async function setAcceso(email, fechAcc){
+        try {
+            const consulta = axios.post('http://localhost/Proyectos_Propios/BuildContiBack/index.php',{
+                tipo_consulta: 'addLastAccess',
+                emaUser: email,
+                ultimoAcceso: fechAcc
+            },{
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            // Si el servidor actualizo con exito el ultimo acceso, se interpreta que no hubo problemas y se le da paso al sistema al usuario
+            if(consulta.data == "Ultimo acceso actualizado con exito"){
+                setModalMsg('Bienvenid@ a Building Continuity');
+                OpenCloseAvisos();
+                setTimeout(() => (navegar.push('/pages/graphics')), 2000);
+            }
+        } catch (error) {
+            // Primer caso, posibles resultados erroneos de la actualizacion del acceso
+            if(error.response){
+                // Establecer el mensaje de error
+                switch(error.response.data){
+                    case "Error: La peticion no fue procesada":
+                        setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
+                        break;
+                    case "Error: El usuario no fue encontrado":
+                        setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
+                        break;
+                    case "Error: El acceso no fue actualizado":
+                        setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
+                        break;
+                    case "Error: La peticion solicitada no fue encontrada":
+                        setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
+                        break;
+                    default:
+                        setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
+                        break;
+                }
+                // Mostrar el modal de errores
+                OpenCloseError();
+            } else if (error.request) {
+                // Segundo caso, el cliente no se pudo contactar con el servidor o este no respondio (Error controlado)
+                setModalMsg("Error: Servicio no disponible, favor de intentar mas tarde");
+            } else {
+                // Tercer caso, ocurrio un error en la disponibilidad de la respuesta del servidor (Error no contemplado y desconocido)
+                setModalMsg("Error: Ocurrio un error durante su petición, favor de intentar mas tarde");
+            }
+        }
+    }
 }
 
 /**Funcion para formatear las fechas
- * @param {string} fechTransform 
- * @returns {string} */
-function getFecha(fechTransform){
-    let fecha, dia="", mes="", hora="", min="", seg="";
-    fecha = new Date(fechTransform)
-
+ * @returns {string} Fecha Formateada en cadena de texto a YYYY-MM-DD hh:mm:ss */
+function getFecha(){
+    const fecha = new Date();
+    let dia="", mes="", hora="", min="", seg="";
+    
     // Agregar un cero por si el dia tiene solo un digito
     if(fecha.getDate().toString().length === 1)
-        dia="0"+fecha.getDate().toString()
+        dia = "0" + fecha.getDate().toString();
     else
-        dia=fecha.getDate()
+        dia = fecha.getDate();
     // Agregar un cero por si el mes tiene un solo digito
-    if(fecha.getMonth().toString().length === 1)
-        mes="0"+fecha.getMonth().toString()
+    if((fecha.getMonth() + 1).toString().length === 1)
+        mes = "0" + (fecha.getMonth() + 1).toString();
     else
-        mes=fecha.getMonth()
+        mes = fecha.getMonth() + 1;
     // Agregar un cero por si la hora solo tiene un digito
     if(fecha.getHours().toString().length === 1)
-        hora="0"+fecha.getHours().toString()
+        hora = "0" + fecha.getHours().toString();
     else    
-        hora=fecha.getHours()
+        hora = fecha.getHours();
     // Agregar un cero por si el minuto tiene un solo digito
     if(fecha.getMinutes().toString().length === 1)
-        min="0"+fecha.getMinutes().toString()
+        min = "0" + fecha.getMinutes().toString();
     else
-        min=fecha.getMinutes()
+        min = fecha.getMinutes();
     // Agregar un cero por si el segundo tiene un solo digito
     if(fecha.getSeconds().toString().length === 1)
-        seg="0"+fecha.getSeconds().toString()
+        seg = "0" + fecha.getSeconds().toString();
     else
-        seg=fecha.getSeconds()
+        seg = fecha.getSeconds();
     // Formato de retorno: YYYY-MM-DD hh:mm:ss
-    return(`${fecha.getFullYear()}/${mes}/${dia} ${hora}:${min}:${seg}`);
+    return(`${fecha.getFullYear()}-${mes}-${dia} ${hora}:${min}:${seg}`);
 }
