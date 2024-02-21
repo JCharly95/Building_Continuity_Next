@@ -1,15 +1,14 @@
 'use client';
 import axios from 'axios';
-//import { buscarUsuario } from './api/buscarUserBD';
-import { validarCorreo } from './components/validations/valiEmail';
-import { validarPassword } from './components/validations/valiPass';
 import estilosEspe from './page.module.css';
 import { useRouter } from 'next/navigation';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import RecuperContra from './components/recoverPass/page';
 import React, { useEffect, useRef, useState } from 'react';
-import { Button, Modal, ModalHeader, ModalBody, Alert } from 'reactstrap';
+import { validarCorreo } from './components/validations/valiEmail';
+import { validarPassword } from './components/validations/valiPass';
 import { AlertTriangle, AlertCircle, Eye, EyeOff } from 'react-feather';
+import { Button, Modal, ModalHeader, ModalBody, Alert } from 'reactstrap';
 
 export default function LoginPage(){
     // Variable de estado para la obtencion de la navegacion y redireccionamiento usando el react-router
@@ -27,7 +26,7 @@ export default function LoginPage(){
     const passRef = useRef(null);
 
     // Agregar un listener para la deteccion de las teclas F12 y ContextMenu
-    /*useEffect(() => {
+    useEffect(() => {
         document.addEventListener('keydown', (event) => {
             if(event.key==="F12" || event.key==="ContextMenu"){
                 event.preventDefault()
@@ -35,66 +34,64 @@ export default function LoginPage(){
                 setModalError(!modalError);
             }
         }, true)
-    }, [modalError])*/
+    }, [modalError])
 
     // Abrir/Cerrar modal de errores
-    function OpenCloseError() {
+    function OpenCloseError(){
         setModalError(!modalError);
     }
 
     // Abrir/Cerrar modal de avisos
-    function OpenCloseAvisos() {
+    function OpenCloseAvisos(){
         setModalAdv(!modalAdv);
     }
 
     /** Funcion para validacion de los campos
-     * @param {string} correo Direccion de correo ingresada
-     * @param {string} contra Contraseña ingresada
+     * @param {string} correo Direccion de Correo Ingresada
+     * @param {string} contra Contraseña Ingresada
      * @returns boolean */
     function valiCampos(correo, contra){
         // Banderas de validaciones; validacion general, validacion de correo y validacion de contraseña
-        let bandeVali = false, bandeValiEma = false, bandeValiPass = false;
+        let bandeVali = false, bandeValiEma = false, bandeValiPass = false, msgVali = "";
         // Obtener los objetos de respuesta de las validaciones de los campos realizadas de forma externa
         const valiCorreo = validarCorreo(correo);
         const valiContra = validarPassword(contra);
         // Validacion de correo
         switch(valiCorreo.getCondicion){
             case 0:
-                setModalMsg("La validacion del correo no fue realizada");
+                msgVali += "La validacion del correo no fue realizada \n";
                 break;
             case 1:
                 bandeValiEma = true;
                 break;
             case 2:
-                setModalMsg(valiCorreo.getMensaje)
+                msgVali += (valiCorreo.getMensaje + " \n");
                 break;
         }
         // Validacion de la contraseña
         switch(valiContra.getCondicion){
             case 0:
-                setModalMsg("La validacion de la contraseña no fue realizada");
+                msgVali += "La validacion de la contraseña no fue realizada \n";
                 break;
             case 1:
                 bandeValiPass = true;
                 break;
             case 2:
-                if(!valiCorreo.getMensaje.includes("Direccion Aceptada")){
-                    setModalMsg(valiCorreo.getMensaje + "\n" + valiContra.getMensaje);
-                }else{
-                    setModalMsg(valiContra.getMensaje);
-                }
+                msgVali += (valiContra.getMensaje + " \n");
                 break;
         }
-        // Si ambos campos se validaron correctamente se regresara un valor verdadero
+        // Si ambos campos se validaron correctamente se establece la bandera como verdadero, si no, se establece el contenido textual del error obtenido
         if(bandeValiEma && bandeValiPass){
             bandeVali = true;
+        }else{
+            setModalMsg(msgVali);
         }
         return bandeVali;
     }
 
     /** Verificacion de envio del formulario de acceso
      * @param {Event} evento Evento de verificacion del formulario previo al acceso del sistema */
-    function veriForm(evento) {
+    function veriForm(evento){
         // Evitar lanzar el formulario por defecto
         evento.preventDefault();
         // Establecer los datos de entrada en constantes para mejorar el trabajo de codigo
@@ -108,6 +105,7 @@ export default function LoginPage(){
             buscarUsuario(dirEmaUs, valPassUs);
         }else{
             // Si no, se abrira el modal de avisos con los errores contenidos
+            setModalError("Error: Datos No Validados, Favor de Revisar Su Información")
             OpenCloseError();
         }
     }
@@ -116,7 +114,7 @@ export default function LoginPage(){
      * @param {string} clave Identificador de Cookie o Session
      * @param {string} emaUser Valor Direccion de Correo de Acceso
      * @param {number} passLongi Longitud de la Contraseña */
-    function acceder(clave, emaUser, passLongi) {
+    function acceder(clave, emaUser, passLongi){
         // Creando el objeto de sesion
         const session = {
             info: emaUser,
@@ -227,7 +225,7 @@ export default function LoginPage(){
             });
             // Una vez que el usuario fue encontrado en la base de datos se procedera con el acceso
             if(consulta.data == "Usuario Encontrado")
-                acceder("user", dirEma, usPass.length())
+                acceder("user", dirEma, usPass.length)
         } catch (error) {
             // Si ocurrio un error en la peticion de busqueda se mostrará aqui
             if (error.response) {
@@ -240,6 +238,7 @@ export default function LoginPage(){
                 // Tercer caso, ocurrio un error en la disponibilidad de la respuesta del servidor (Error no contemplado y desconocido)
                 setModalMsg("Error: Servicio no disponible, favor de intentar mas tarde");
             }
+            OpenCloseError();
         }
     }
 
@@ -248,7 +247,7 @@ export default function LoginPage(){
      * @param {string} fechAcc Fecha del cliente en su ultimo acceso */
     async function setAcceso(email, fechAcc){
         try {
-            const consulta = axios.post('http://localhost/Proyectos_Propios/BuildContiBack/index.php',{
+            const consulta = await axios.post('http://localhost/Proyectos_Propios/BuildContiBack/index.php',{
                 tipo_consulta: 'addLastAccess',
                 emaUser: email,
                 ultimoAcceso: fechAcc
@@ -266,33 +265,28 @@ export default function LoginPage(){
         } catch (error) {
             // Primer caso, posibles resultados erroneos de la actualizacion del acceso
             if(error.response){
-                // Establecer el mensaje de error
-                switch(error.response.data){
-                    case "Error: La peticion no fue procesada":
-                        setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
-                        break;
-                    case "Error: El usuario no fue encontrado":
-                        setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
-                        break;
-                    case "Error: El acceso no fue actualizado":
-                        setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
-                        break;
-                    case "Error: La peticion solicitada no fue encontrada":
-                        setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
-                        break;
-                    default:
-                        setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
-                        break;
+                if(codigo == 421){
+                    // Error: La peticion no fue procesada
+                    setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
+                }else if(codigo == 402){
+                    // Error: El usuario no fue encontrado
+                    setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
+                }else if(codigo == 408){
+                    // Error: El acceso no fue actualizado
+                    setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
+                }else if(codigo == 418){
+                    // Error: La peticion no fue encontrada (default del switch en el server)
+                    setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
                 }
-                // Mostrar el modal de errores
-                OpenCloseError();
-            } else if (error.request) {
+            }else if(error.request){
                 // Segundo caso, el cliente no se pudo contactar con el servidor o este no respondio (Error controlado)
-                setModalMsg("Error: Servicio no disponible, favor de intentar mas tarde");
-            } else {
+                setModalMsg("Error de Acceso: Servicio no disponible, favor de intentar mas tarde");
+            }else{
                 // Tercer caso, ocurrio un error en la disponibilidad de la respuesta del servidor (Error no contemplado y desconocido)
                 setModalMsg("Error: Ocurrio un error durante su petición, favor de intentar mas tarde");
             }
+            // Mostrar el modal de errores
+            OpenCloseError();
         }
     }
 }

@@ -2,6 +2,8 @@
 import axios from 'axios';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
+import dynamic from 'next/dynamic';
+const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 import estilosGen from '../../globals.css';
 import { useRouter } from 'next/navigation';
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -136,7 +138,7 @@ export default function Grafica_Page() {
     //-------------------------------------------------------------------------------------------------------------
 
     // Agregando un listener para la deteccion de presionar las teclas F12 y ContextMenu
-    useEffect(() => {
+    /*useEffect(() => {
         document.addEventListener('keydown', (evento) => {
             if(evento.key==="F12" || evento.key==="ContextMenu") {
                 // Prevenir la accion por defecto de las teclas
@@ -154,7 +156,7 @@ export default function Grafica_Page() {
         evento.preventDefault()
         setModalErrMsg("Error: Accion no valida");
         OpenCloseError();
-    }
+    }*/
 
     /* Buscar los elementos por classname para encontrar el texto de carga de informacion de la grafica
     useEffect(() => {
@@ -293,7 +295,7 @@ export default function Grafica_Page() {
         }
 
         //----------------Preparacion de las opciones de configuracion para la grafica------------------------
-        /*const options = {
+        const options = {
             chart: {
                 animations: {
                     initialAnimation: {
@@ -408,7 +410,7 @@ export default function Grafica_Page() {
             noData: {
                 text: 'Preparando información, aguarde por favor...'
             }
-        };*/
+        };
         //----------------------------------------------------------------------------------------------------
 
         //----------------Preparacion del filtro de busqueda de informacion para el usuario-------------------
@@ -488,7 +490,8 @@ export default function Grafica_Page() {
         }
 
         // Cargando los valores de la pagina en caso de estar logueado
-        page = <section onContextMenu={contextMenu}>
+        //page = <section onContextMenu={contextMenu}>
+        page = <section>
             <div className='container-fluid border mt-1'>
                 <div className='row align-items-center border pt-3 pb-3 text-center'>
                     <div className='col-sm-auto mt-2'>
@@ -540,8 +543,8 @@ export default function Grafica_Page() {
                     {iconCh}
                 </div>
                 <div id='areaGraf' className='row align-items-center border pt-3 pb-5 mb-3'>
-                {   /*
-                    <Chart options={options} series={options.series} type="line" width="100%" height="280%" /> */
+                {   
+                    <Chart options={options} series={options.series} type="line" width="100%" height="280%" />
                 }
                 </div>
                 <div id="ModalError">
