@@ -1,7 +1,11 @@
 'use client';
 import axios from 'axios';
+import Calendario from '@/app/components/calendar/page';
+import Grafica from '@/app/components/graphEmpty/page';
 import Flatpickr from 'react-flatpickr';
 import 'flatpickr/dist/themes/light.css';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import dynamic from 'next/dynamic';
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 import estilosGen from '../../globals.css';
@@ -19,13 +23,11 @@ export default function Grafica_Page() {
     //----------------------------Estableciendo las variables de trabajo--------------------------------------
     // Constante de historial de navegacion
     const navegar = useRouter();
-    // Variable de retorno del contenido de la pagina
-    let page = <></>;
     // Obteniendo la credencial del usuario logueado; Para nextjs hay que usar una forma diferente para el localstorage
     let usSession;
     try {
         usSession = localStorage.getItem("user") || "";
-    } catch (error) {}
+    }catch(error){}
     // Variable de estado para la obtencion de registros
     const [metadata, setMetadata] = useState([1]);
     // Establecer las variables de las fechas
@@ -33,8 +35,6 @@ export default function Grafica_Page() {
     const [fechFin, setFechFin] = useState(Date.now());
     // Establecer la variable de busqueda de datos (el filtro que se usara con la lista desplegable)
     const [tipInfoBus, setTipInfoBus] = useState("404");
-    // Los registros suelen estar desde el 15 de marzo hasta el 14 de julio
-    const [listaSenso, setListaSenso] = useState([1]);
     // Variable de estado para la apertura o cierre del modal de aviso de errores
     const [modalError, setModalError] = useState(false);
     // Variable de estado para la apertura o cierre del modal de avisos
@@ -45,75 +45,45 @@ export default function Grafica_Page() {
     const [modalAviMsg, setModalAviMsg] = useState("Esperando mensaje de advertencia");
     // Variable de animacion de carga
     const [iconCh, setIconCh] = useState();
+    // Estado del icono de carga
+    const iconStaVal = (staIconCarg) => setIconCh(staIconCarg);
+    // Variable de estado con la grafica
+    const [grafica, setGrafica] = useState();
+    // Banderas de disparo de los seleccionadores
+    let senBande = false, fechIniBande = false, fechFinBande = false;
     // Arreglo de valores para el promedio y para concatenacion de elementos en la grafica
     const arrVals = [], info = [];
-    // Flatpickr; Preparacion de constantes de referencia para limpieza de campos input
-    const fechIniSel = useRef(null), fechFinSel = useRef(null);
-    // Flatpickr; Variables de referencia para la obtencion de fechas seleccionadas
-    let fechIngreIni, fechIngreFin;
     //--------------------------------------------------------------------------------------------------------
     // Obtencion de la lista de sensores actuales disponibles para la seleccion de busqueda en la lista
-    const [listaFil, setListaFil] = useState(listaSenso.map(
-        (sensor) => {
-            if(`${sensor.VALUEFACETS}`.split(";")[1]!=='') {
-                if(`${sensor.VALUEFACETS}`.split(";")[1]==='V' || `${sensor.VALUEFACETS}`.split(";")[1]==='v') {
-                    return {
-                        nombre: `${sensor.Nombre}`, 
-                        valor: `${sensor.ID_}`, 
-                        unidad: 'Volts'
-                    }
-                }else if(`${sensor.VALUEFACETS}`.split(";")[1]==='%') {
-                    return {
-                        nombre: `${sensor.Nombre}`, 
-                        valor: `${sensor.ID_}`, 
-                        unidad: '% de Combustible'
-                    }
-                }else{
-                    return {
-                        nombre: `${sensor.Nombre}`, 
-                        valor: `${sensor.ID_}`, 
-                        unidad: `${sensor.VALUEFACETS}`.split(";")[1]
-                    }
-                }
+
+    
+    // Buscar los elementos por classname para encontrar el texto de carga de informacion de la grafica
+    useEffect(() => {
+        let elementos = document.getElementsByClassName("apexcharts-text");
+        for(const element of elementos){
+            if(element.textContent === "Preparando información, aguarde por favor..."){
+                // Si se encuentra el mensaje de carga en el virtual DOM se establece el icono de carga como esperando
+                setIconCh(
+                    <div className='col-sm-auto'>
+                        <div className='row justify-content-center align-items-center'>
+                            <span>Esperando...</span>
+                        </div>
+                        <div className='row justify-content-center align-items-center'>
+                            <FontAwesomeIcon icon={faSpinner} size='2x' spin/>
+                        </div>
+                    </div>
+                );
+                break;
             }else{
-                if(`${sensor.ID_}`.includes("Incendio")) {
-                    return {
-                        nombre: `${sensor.Nombre}`, 
-                        valor: `${sensor.ID_}`, 
-                        unidad: 'Detecciones de Humo'
-                    }
-                }else if(`${sensor.ID_}`.includes("Potable")) {
-                    return {
-                        nombre: `${sensor.Nombre}`, 
-                        valor: `${sensor.ID_}`, 
-                        unidad: 'Litros'
-                    }
-                }else if(`${sensor.ID_}`.includes("Pluvial")) {
-                    return {
-                        nombre: `${sensor.Nombre}`, 
-                        valor: `${sensor.ID_}`,
-                        unidad: 'Cantidad de Lluvia'
-                    }
-                }else if(`${sensor.ID_}`.includes("Starts")) {
-                    return {
-                        nombre: `${sensor.Nombre}`, 
-                        valor: `${sensor.ID_}`, 
-                        unidad: 'Cantidad de Inicios'
-                    }
-                }else{
-                    return {
-                        nombre: `${sensor.Nombre}`, 
-                        valor: `${sensor.ID_}`, 
-                        unidad: 'No se detecta unidad'
-                    }
-                }
+                // Si no se encuentra el mensaje de carga, procede a borrarse el contenido (es decir, a desaparecer la carga)
+                setIconCh();
             }
         }
-    ));
+    }, []);
 
     //-------------------------Peticiones con Axios para obtener la informacion------------------------------------
     // Peticion para obtener los datos de historicrecord que se usaran en la grafica
-    useEffect(() => {
+    /*useEffect(() => {
         const obteInfo = async(estado) => {
             try{
                 const peticion = await axios.get('https://app.buildingcontinuity.com.mx/php/data.php?tipo_consulta=historico');
@@ -123,24 +93,12 @@ export default function Grafica_Page() {
         }
         obteInfo(setMetadata);
     }, []);
-
-    //Peticion para obtener los valores de la tabla de registros de los sensores
-    useEffect(() => {
-        const obteSenso = async(estado) => {
-            try{
-                const peticion = await axios.get('https://app.buildingcontinuity.com.mx/php/data.php?tipo_consulta=sensor');
-                estado(peticion.data);
-            } catch (error){
-            }
-        }
-        obteSenso(setListaSenso);
-    }, []);
     //-------------------------------------------------------------------------------------------------------------
 
     // Agregando un listener para la deteccion de presionar las teclas F12 y ContextMenu
-    /*useEffect(() => {
+    useEffect(() => {
         document.addEventListener('keydown', (evento) => {
-            if(evento.key==="F12" || evento.key==="ContextMenu") {
+            if(evento.key==="F12" || evento.key==="ContextMenu"){
                 // Prevenir la accion por defecto de las teclas
                 evento.preventDefault();
                 // Setear el mensaje de error y mostrar el modal de errores
@@ -151,7 +109,7 @@ export default function Grafica_Page() {
     }, [modalError]);
 
     // Funcion para muestra del menu contextual
-    function contextMenu(evento) {
+    function contextMenu(evento){
         // Prevenir la accion por defecto de las teclas
         evento.preventDefault()
         setModalErrMsg("Error: Accion no valida");
@@ -178,15 +136,15 @@ export default function Grafica_Page() {
                 setIconCh();
             }
         }
-    }, [iconCh]);*/
+    }, []); */
 
     //-----------------------------Codigo para el funcionamiento de Inactividad------------------------------------
     useEffect(() => {
-        setModalAvisos(true);
         setModalAviMsg("NOTA: Si la consulta de datos que desea realizar contiene muchos registros, la grafica podria tardar en cargar. Gracias por su comprensión.");
+        setModalAvisos(true);
         let contaInacti;
         // Preparacion para el procedimiento de inactividad
-        function setupInacti() {
+        function setupInacti(){
             // Agregando los listener de los eventos en pantalla
             document.addEventListener('wheel', reiniciarConteo, false);
             document.addEventListener('scroll', reiniciarConteo, false);
@@ -201,14 +159,14 @@ export default function Grafica_Page() {
             iniciarConteo();
         }
         // Funciones de inactividad
-        function iniciarConteo() {
+        function iniciarConteo(){
             contaInacti = setTimeout(() => {    // Temporizador establecido a 5 minutos, en milisegundos
                 alert("Aviso: \n- El sistema cerrará la sesion por inactividad. \nNOTA:\n- Este aviso puede salir en multiples ocasiones.");
                 navegar.push("/");
             }, 300000);
             // 300000 = 5 minutos, 60000 = 1 minuto, 30000 = 30 segundos
         }
-        function reiniciarConteo() {
+        function reiniciarConteo(){
             // Limpiar/Eliminar valor actual del contador
             clearTimeout(contaInacti);
             // Reiniciar el contador
@@ -220,21 +178,18 @@ export default function Grafica_Page() {
     //-------------------------------------------------------------------------------------------------------------
     
     // Abrir/Cerrar modal de errores
-    function OpenCloseError() {
-        setModalError(!modalError);
-    }
+    const OpenCloseError = () => setModalError(!modalError);
 
     // Abrir/Cerrar modal de avisos
-    const OpenCloseAvisos = () => {
-        setModalAvisos(!modalAvisos);
-    }
+    const OpenCloseAvisos = () => setModalAvisos(!modalAvisos);
 
-    /* Verificacion del local storage para ver si hay un usuario logueado
-    Si la credencial del usuario no esta almacenada en el localStorage, quiere decir que no ha iniciado sesion, por lo que se le retornara al login */
+    // Verificacion del local storage para ver si hay un usuario logueado
+    //Si la credencial del usuario no esta almacenada en el localStorage, quiere decir que no ha iniciado sesion, por lo que se le retornara al login
     if(!usSession){
         navegar.push("/");
+        return 0;
     }else{
-        // Obtencion de todos los registros que coincidan con el nombre/identificador de busqueda
+        /* Obtencion de todos los registros que coincidan con el nombre/identificador de busqueda
         const regsBusqueda = [];
         metadata.map(
             (allData) => (
@@ -251,31 +206,6 @@ export default function Grafica_Page() {
             )
         );
 
-        //--------------------------Preparacion de Flatpickr------------------------------------------------
-        const optionsInicial = {
-            altInput: true,
-            enableTime: true,
-            altFormat: "Y/m/d; H:i",
-            dateFormat: 'Y-m-d H:i',
-            defaultDate: Date.now(),
-            onClose: function(selectedDates, dateSel) {
-                fechIngreIni = new Date(dateSel);
-                setFechIni(fechIngreIni);
-            }
-        };
-        const optionsFinal = {
-            altInput: true,
-            enableTime: true,
-            altFormat: "Y/m/d; H:i",
-            dateFormat: "Y-m-d H:i",
-            defaultDate: Date.now(),
-            onClose: function(selectedDates, dateSel) {
-                fechIngreFin = new Date(dateSel);
-                setFechFin(fechIngreFin);
-            }
-        };
-        //--------------------------------------------------------------------------------------------------
-
         // Obteniendo el valor promedio de valores
         regsBusqueda.map((reg) => (arrVals.push(reg.VALUE)));
         if(arrVals.length > 0){
@@ -286,7 +216,7 @@ export default function Grafica_Page() {
                 if(fechIni === "" || fechFin === "" || (fechIni === "" && fechFin === ""))
                     return null;
                 /* Ya que el promedio depende del resultado de la consulta solo en este punto se puede hacer el filtrado de datos junto con el parametro del promedio.
-                Entonces si la fecha se comprende entre la inicial y la final, ademas de ser mayor al promedio (para que no haya tantos registros) se incoporara el registro al arreglo de valores para la grafica*/
+                Entonces si la fecha se comprende entre la inicial y la final, ademas de ser mayor al promedio (para que no haya tantos registros) se incoporara el registro al arreglo de valores para la grafica
                 if((fecha > fechIni) && (fecha < fechFin) && (valor > promedio)){
                     info.push([fecha, valor])
                 }
@@ -410,132 +340,70 @@ export default function Grafica_Page() {
             noData: {
                 text: 'Preparando información, aguarde por favor...'
             }
-        };
+        };*/
         //----------------------------------------------------------------------------------------------------
-
-        //----------------Preparacion del filtro de busqueda de informacion para el usuario-------------------
-        if(listaFil.length === 1){
-            // Vaciando el arreglo
-            listaFil.splice(0, listaFil.length);
-            // Rellenando el arreglo con los elementos de la BD
-            listaSenso.map(
-                (sensor) => {
-                    if(`${sensor.VALUEFACETS}`.split(";")[1]!==''){
-                        if(`${sensor.VALUEFACETS}`.split(";")[1]==='V' || `${sensor.VALUEFACETS}`.split(";")[1]==='v'){
-                            listaFil.push({
-                                nombre: `${sensor.Nombre}`, 
-                                valor: `${sensor.ID_}`, 
-                                unidad: 'Volts'
-                            });
-                        }else if(`${sensor.VALUEFACETS}`.split(";")[1]==='%'){
-                            listaFil.push({
-                                nombre: `${sensor.Nombre}`, 
-                                valor: `${sensor.ID_}`, 
-                                unidad: '% de Combustible'
-                            });
-                        }else{
-                            listaFil.push({
-                                nombre: `${sensor.Nombre}`, 
-                                valor: `${sensor.ID_}`, 
-                                unidad: `${sensor.VALUEFACETS}`.split(";")[1]
-                            });
-                        }
-                    }else{
-                        if(`${sensor.ID_}`.includes("Incendio")){
-                            listaFil.push({
-                                nombre: `${sensor.Nombre}`, 
-                                valor: `${sensor.ID_}`, 
-                                unidad: 'Detecciones de Humo'
-                            });
-                        }else if(`${sensor.ID_}`.includes("Potable")){
-                            listaFil.push({
-                                nombre: `${sensor.Nombre}`, 
-                                valor: `${sensor.ID_}`, 
-                                unidad: 'Litros'
-                            });
-                        }else if(`${sensor.ID_}`.includes("Pluvial")){
-                            listaFil.push({
-                                nombre: `${sensor.Nombre}`, 
-                                valor: `${sensor.ID_}`,
-                                unidad: 'Cantidad de Lluvia'
-                            });
-                        }else if(`${sensor.ID_}`.includes("Starts")){
-                            listaFil.push({
-                                nombre: `${sensor.Nombre}`, 
-                                valor: `${sensor.ID_}`, 
-                                unidad: 'Cantidad de Inicios'
-                            });
-                        }else{
-                            listaFil.push({
-                                nombre: `${sensor.Nombre}`, 
-                                valor: `${sensor.ID_}`, 
-                                unidad: 'No se detecta unidad'
-                            });
-                        }
-                    }
-                    return 0;
-                }
-            );
-        }
-        //----------------------------------------------------------------------------------------------------
-        
-        // Funcion para establecer los sensores a buscar; Esta funcion se usara junto con el modal de agregar sensor
-        const addSensBus = (nueLista) => {
-            setListaFil(nueLista);
-        }
         
         // Funcion para setear el tipo de dato a buscar en la grafica; Este dato es retornado por la lista de seleccion
-        const solFilBus = (filBus) => {
-            setTipInfoBus(filBus);
+        const sensorSelec = (sensorBus) => {
+            setTipInfoBus(sensorBus);
+            console.log("Sensor Buscado: " + sensorBus);
+            senBande = true;
+            //actuGraf(sensorBus, fechIni, fechFin);
+            actuGraf();
+        };
+
+        // Funcion para la obtencion del valor de la fecha de inicio
+        const fechaInicio = (valFechIni) => {
+            const fechIniConv = Math.floor(new Date(valFechIni).getTime()/1000.0);
+            setFechIni(fechIniConv);
+            console.log("Fecha de Inicio: " + valFechIni + "Fecha Epoch: " + fechIni);
+            //actuGraf(tipInfoBus, fechIniConv, fechFin);
+            fechIniBande = true;
+            actuGraf();
+        }
+
+        // Funcion para la obtencion del valor de la fecha de inicio
+        const fechaFinal = (valFechFin) => {
+            const fechFinConv = Math.floor(new Date(valFechFin).getTime()/1000.0);
+            setFechFin(fechFinConv);
+            console.log("Fecha de Fin: " + valFechFin + "Fecha Epoch: " + fechFin);
+            //actuGraf(tipInfoBus, fechIni, fechFinConv);
+            fechFinBande = true;
+            actuGraf();
+        }
+
+        // Funcion de actualizacion de la grafica
+        const actuGraf = () => {
+            // Actualizando la grafica con los valores de estado hasta que esten los 3 seleccionadores cambiados al menos una vez
+            if(senBande && fechIniBande && fechFinBande){
+                console.log("ya entro aqui");
+                setGrafica(<Grafica sensorInfo={tipInfoBus} fechIniGraf={fechIni} fechFinGraf={fechFin} iconCarga={iconStaVal}/>);
+            }
         }
 
         // Cargando los valores de la pagina en caso de estar logueado
         //page = <section onContextMenu={contextMenu}>
-        page = <section>
+        /*page = <section>
             <div className='container-fluid border mt-1'>
                 <div className='row align-items-center border pt-3 pb-3 text-center'>
                     <div className='col-sm-auto mt-2'>
                         <div className='input-group mb-2'>
-                            <Lista_Filtros id="selFil" selFilBus={solFilBus} elemSel={listaFil} title="Seleccione la categoria"/>
+                            <Lista_Filtros selSenBus={sensorSelec} />
                         </div>
                     </div>
                     <div className='col-sm-3'>
                         <span>Seleccionar Fecha y Hora de Inicio:</span>
-                        <div className='input-group mb-2'>
-                            <div className='input-group-prepend'>
-                                <div className='input-group-text'><Calendar/></div>
-                            </div>
-                            <Flatpickr placeholder='Seleccionar Fecha y Hora de Inicio:' ref={fechIniSel} options={optionsInicial} />
-                            <button className='btn btn-danger' type="button" onClick={() => {
-                                if (!fechIniSel?.current?.flatpickr) return;
-                                    fechIniSel.current.flatpickr.clear();
-                                    setFechIni("");
-                                }
-                            }> Borrar
-                            </button>
-                        </div>
+                        <Calendario valorSel={fechaInicio} tipoCal={"Inicio"} />
                     </div>
                     <div className='col-sm-3'>
                         <span>Seleccionar Fecha y Hora de Fin:</span>
-                        <div className='input-group mb-2'>
-                            <div className='input-group-prepend'>
-                                <div className='input-group-text'><Calendar/></div>
-                            </div>
-                            <Flatpickr placeholder='Seleccionar Fecha y Hora de Fin:' ref={fechFinSel} options={optionsFinal} />
-                            <button className='btn btn-danger' type="button" onClick={() => {
-                                if (!fechFinSel?.current?.flatpickr) return;
-                                    fechFinSel.current.flatpickr.clear();
-                                    setFechFin("");
-                                }
-                            }> Borrar
-                            </button>
-                        </div>
+                        <Calendario valorSel={fechaFinal} tipoCal={"Final"} />
                     </div>
                     <div className='col-sm-auto'>
                         <div className='row align-items-center'>
                             <div className='col-md-auto'>
                                 <div className='input-group mt-4 mb-2'>
-                                    <Agregar_Sensor senFunc={addSensBus} sensores={listaFil} />
+                                    <Agregar_Sensor />
                                 </div>
                             </div>
                         </div>
@@ -543,8 +411,9 @@ export default function Grafica_Page() {
                     {iconCh}
                 </div>
                 <div id='areaGraf' className='row align-items-center border pt-3 pb-5 mb-3'>
-                {   
-                    <Chart options={options} series={options.series} type="line" width="100%" height="280%" />
+                {
+                    grafica
+                    //<Chart options={options} series={options.series} type="line" width="100%" height="280%" />
                 }
                 </div>
                 <div id="ModalError">
@@ -572,11 +441,73 @@ export default function Grafica_Page() {
                     </Modal>
                 </div>
             </div>
-        </section>
+        </section>*/
+
+        return (
+            //<section onContextMenu={contextMenu}>
+            <section>
+                <div className='container-fluid border mt-1'>
+                    <div className='row align-items-center border pt-3 pb-3 text-center'>
+                        <div className='col-sm-auto mt-2'>
+                            <div className='input-group mb-2'>
+                                <Lista_Filtros selSenBus={sensorSelec} />
+                            </div>
+                        </div>
+                        <div className='col-sm-3'>
+                            <span>Seleccionar Fecha y Hora de Inicio:</span>
+                            <Calendario valorSel={fechaInicio} tipoCal={"Inicio"} />
+                        </div>
+                        <div className='col-sm-3'>
+                            <span>Seleccionar Fecha y Hora de Fin:</span>
+                            <Calendario valorSel={fechaFinal} tipoCal={"Final"} />
+                        </div>
+                        <div className='col-sm-auto'>
+                            <div className='row align-items-center'>
+                                <div className='col-md-auto'>
+                                    <div className='input-group mt-4 mb-2'>
+                                        <Agregar_Sensor />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {iconCh}
+                    </div>
+                    <div id='areaGraf' className='row align-items-center border pt-3 pb-5 mb-3'>
+                        {grafica/*<Chart options={options} series={options.series} type="line" width="100%" height="280%" />*/}
+                    </div>
+                    <div id="ModalError">
+                        <Modal isOpen={modalError} toggle={OpenCloseError}>
+                            <ModalHeader toggle={OpenCloseError}>
+                                <p>Error <AlertTriangle color="red" size={30} /></p>
+                            </ModalHeader>
+                            <ModalBody>
+                                <Alert color="danger">
+                                    <p>{modalErrMsg}</p>
+                                </Alert>
+                            </ModalBody>
+                        </Modal>
+                    </div>
+                    <div id="ModalAdvice">
+                        <Modal isOpen={modalAvisos} toggle={OpenCloseAvisos}>
+                            <ModalHeader toggle={OpenCloseAvisos}>
+                                <p>Advertencia <AlertCircle color="blue" size={30} /></p>
+                            </ModalHeader>
+                            <ModalBody>
+                                <Alert color="success">
+                                    <p>{modalAviMsg}</p>
+                                </Alert>
+                            </ModalBody>
+                        </Modal>
+                    </div>
+                </div>
+            </section>
+        );
     }
-    return page;
 }
 
+/**
+ * @returns {string} Fecha Formateada en estilo YYYY-MM-DD_hh.mm
+ */
 function getFecha() {
     let fecha, dia = "", mes = "", hora = "", min = "";
     fecha = new Date();

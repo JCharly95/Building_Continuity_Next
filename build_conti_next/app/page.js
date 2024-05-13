@@ -233,10 +233,10 @@ export default function LoginPage(){
                 setModalMsg("Error: Acceso Denegado, revise su información");
             } else if (error.request) {
                 // Segundo caso, el cliente no se pudo contactar con el servidor o este no respondio (Error controlado)
-                setModalMsg("Error: Servicio no disponible, favor de intentar mas tarde");
+                setModalMsg("Error: Servicio no disponible Caso 1, favor de intentar mas tarde");
             } else {
                 // Tercer caso, ocurrio un error en la disponibilidad de la respuesta del servidor (Error no contemplado y desconocido)
-                setModalMsg("Error: Servicio no disponible, favor de intentar mas tarde");
+                setModalMsg("Error: Servicio no disponible Caso 2, favor de intentar mas tarde");
             }
             OpenCloseError();
         }
