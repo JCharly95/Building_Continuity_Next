@@ -128,16 +128,16 @@ export default function Agregar_Sensor(){
         } catch (error) {
             // Primer caso, posibles resultados erroneos de la actualizacion del acceso
             if(error.response){
-                if(codigo == 421){
+                if(error.response.status == 421){
                     // Error: La peticion no fue procesada
                     setModalMsg("La petición no pudo ser procesada, favor de intentarlo después");
-                }else if(codigo == 401){
+                }else if(error.response.status == 401){
                     // Error: El sensor ya cuenta con registro previo
                     setModalMsg("El sensor seleccionado ya fue registrado, favor de seleccionar otro");
-                }else if(codigo == 410){
+                }else if(error.response.status == 410){
                     // Error: El sensor no pudo ser registrado
                     setModalMsg("El sensor seleccionado no pudo ser registrado, favor de intentarlo después");
-                }else if(codigo == 418){
+                }else if(error.response.status == 418){
                     // Error: La peticion no fue encontrada (default del switch en el server)
                     setModalMsg("La petición no fue procesada, favor de intentarlo después");
                 }

@@ -265,16 +265,16 @@ export default function LoginPage(){
         } catch (error) {
             // Primer caso, posibles resultados erroneos de la actualizacion del acceso
             if(error.response){
-                if(codigo == 421){
+                if(error.response.status == 421){
                     // Error: La peticion no fue procesada
                     setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
-                }else if(codigo == 402){
+                }else if(error.response.status == 402){
                     // Error: El usuario no fue encontrado
                     setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
-                }else if(codigo == 408){
+                }else if(error.response.status == 408){
                     // Error: El acceso no fue actualizado
                     setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
-                }else if(codigo == 418){
+                }else if(error.response.status == 418){
                     // Error: La peticion no fue encontrada (default del switch en el server)
                     setModalMsg("Ocurrio un error al acceder al sistema, favor de intentarlo después");
                 }

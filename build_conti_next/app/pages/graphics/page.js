@@ -18,18 +18,17 @@ import { faSpinner } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Modal, ModalHeader, ModalBody, Alert } from "reactstrap";
 import { AlertTriangle, AlertCircle, Calendar } from 'react-feather';
+import ProcesoGrafica from '@/app/components/graphEmpty/page';
 
-export default function Grafica_Page() {
+export default function Grafica_Page(){
     //----------------------------Estableciendo las variables de trabajo--------------------------------------
     // Constante de historial de navegacion
     const navegar = useRouter();
     // Obteniendo la credencial del usuario logueado; Para nextjs hay que usar una forma diferente para el localstorage
     let usSession;
-    try {
-        usSession = localStorage.getItem("user") || "";
-    }catch(error){}
-    // Variable de estado para la obtencion de registros
-    const [metadata, setMetadata] = useState([1]);
+    try { usSession = localStorage.getItem("user") || ""; } catch(error) { }
+    /* Variable de estado para la obtencion de registros
+    const [registros, setRegistros] = useState([1]);*/
     // Establecer las variables de las fechas
     const [fechIni, setFechIni] = useState(Date.now());
     const [fechFin, setFechFin] = useState(Date.now());
@@ -37,20 +36,30 @@ export default function Grafica_Page() {
     const [tipInfoBus, setTipInfoBus] = useState("404");
     // Variable de estado para la apertura o cierre del modal de aviso de errores
     const [modalError, setModalError] = useState(false);
-    // Variable de estado para la apertura o cierre del modal de avisos
-    const [modalAvisos, setModalAvisos] = useState(false);
     // Variable de estado para el establecimiento del mensaje contenido en el modal de errores
     const [modalErrMsg, setModalErrMsg] = useState("Ocurrio un error en la accion solicitada");
+    // Variable de estado para la apertura o cierre del modal de avisos
+    const [modalAvisos, setModalAvisos] = useState(false);
     // Variable de estado para el establecimiento del mensaje contenido en el modal de avisos
     const [modalAviMsg, setModalAviMsg] = useState("Esperando mensaje de advertencia");
+    // Mensaje de la seccion de carga, segun la accion solicitada
+    const [msgCarga, setMsgCarga] = useState("Preparando información, aguarde...");
+    // Estado de visualizacion de la seccion; true para ocultar, false para mostrar la carga
+    const [oculCarga, setOculCarga] = useState(false);
     // Variable de animacion de carga
-    const [iconCh, setIconCh] = useState();
-    // Estado del icono de carga
-    const iconStaVal = (staIconCarg) => setIconCh(staIconCarg);
+    const iconCh = <div className='col-sm-auto'>
+        <div className='row justify-content-center align-items-center'>
+            <span>{msgCarga}</span>
+        </div>
+        <div className='row justify-content-center align-items-center'>
+            <FontAwesomeIcon icon={faSpinner} size='2x' spin/>
+        </div>
+    </div>;
     // Variable de estado con la grafica
-    const [grafica, setGrafica] = useState();
+    const [grafica, setGrafica] = useState(<ProcesoGrafica sensorInfo={null} area={null} fechIniGraf={null} fechFinGraf={null} />);
     // Banderas de disparo de los seleccionadores
-    let senBande = false, fechIniBande = false, fechFinBande = false;
+    const [senBande, setSenBande] = useState(false), [fechIniBande, setFechIniBande] = useState(false), [fechFinBande, setFechFinBande] = useState(false);
+    //let senBande = false, fechIniBande = false, fechFinBande = false;
     // Arreglo de valores para el promedio y para concatenacion de elementos en la grafica
     const arrVals = [], info = [];
     //--------------------------------------------------------------------------------------------------------
@@ -63,20 +72,12 @@ export default function Grafica_Page() {
         for(const element of elementos){
             if(element.textContent === "Preparando información, aguarde por favor..."){
                 // Si se encuentra el mensaje de carga en el virtual DOM se establece el icono de carga como esperando
-                setIconCh(
-                    <div className='col-sm-auto'>
-                        <div className='row justify-content-center align-items-center'>
-                            <span>Esperando...</span>
-                        </div>
-                        <div className='row justify-content-center align-items-center'>
-                            <FontAwesomeIcon icon={faSpinner} size='2x' spin/>
-                        </div>
-                    </div>
-                );
+                setMsgCarga("Esperando...");
+                setOculCarga(false);
                 break;
             }else{
                 // Si no se encuentra el mensaje de carga, procede a borrarse el contenido (es decir, a desaparecer la carga)
-                setIconCh();
+                setOculCarga(true);
             }
         }
     }, []);
@@ -347,7 +348,7 @@ export default function Grafica_Page() {
         const sensorSelec = (sensorBus) => {
             setTipInfoBus(sensorBus);
             console.log("Sensor Buscado: " + sensorBus);
-            senBande = true;
+            setSenBande(true);
             //actuGraf(sensorBus, fechIni, fechFin);
             actuGraf();
         };
@@ -358,7 +359,7 @@ export default function Grafica_Page() {
             setFechIni(fechIniConv);
             console.log("Fecha de Inicio: " + valFechIni + "Fecha Epoch: " + fechIni);
             //actuGraf(tipInfoBus, fechIniConv, fechFin);
-            fechIniBande = true;
+            setFechIniBande(true);
             actuGraf();
         }
 
@@ -368,16 +369,26 @@ export default function Grafica_Page() {
             setFechFin(fechFinConv);
             console.log("Fecha de Fin: " + valFechFin + "Fecha Epoch: " + fechFin);
             //actuGraf(tipInfoBus, fechIni, fechFinConv);
-            fechFinBande = true;
+            setFechFinBande(true);
             actuGraf();
         }
 
         // Funcion de actualizacion de la grafica
         const actuGraf = () => {
-            // Actualizando la grafica con los valores de estado hasta que esten los 3 seleccionadores cambiados al menos una vez
-            if(senBande && fechIniBande && fechFinBande){
+            // Cambiar el mensaje de carga y mostrar la seccion de carga
+            setMsgCarga("Cargando...");
+            setOculCarga(false);
+            
+            // Actualizando la grafica con los valores de estado si alguno de los seleccionadores fue activado
+            if(senBande || fechIniBande || fechFinBande){
                 console.log("ya entro aqui");
-                setGrafica(<Grafica sensorInfo={tipInfoBus} fechIniGraf={fechIni} fechFinGraf={fechFin} iconCarga={iconStaVal}/>);
+                setGrafica(<ProcesoGrafica sensorInfo={tipInfoBus} area={document.getElementById("areaGraf")} fechIniGraf={fechIni} fechFinGraf={fechFin} />);
+                // Ocultar la seccion de carga cuando se haya actualizado la grafica
+                setOculCarga(true);
+                // Desactivar las banderas de disparo de los seleccionadores
+                setSenBande(false);
+                setFechIniBande(false);
+                setFechFinBande(false);
             }
         }
 
@@ -470,10 +481,14 @@ export default function Grafica_Page() {
                                 </div>
                             </div>
                         </div>
-                        {iconCh}
+                        { !oculCarga && iconCh }
                     </div>
-                    <div id='areaGraf' className='row align-items-center border pt-3 pb-5 mb-3'>
-                        {grafica/*<Chart options={options} series={options.series} type="line" width="100%" height="280%" />*/}
+                    <div id="areaGraf" className="row align-items-center border pt-3 pb-5 mb-3">
+                        {
+                            grafica
+                            //<Chart options={options} series={options.series} type="line" width="100%" height="280%" />
+                            //<Grafica
+                        }
                     </div>
                     <div id="ModalError">
                         <Modal isOpen={modalError} toggle={OpenCloseError}>
