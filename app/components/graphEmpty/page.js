@@ -8,22 +8,22 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import dynamic from 'next/dynamic';
 const Chart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
-export default function Grafica({ sensorInfo, fechIniGraf, fechFinGraf, iconCarga }){
+export default function ProcesoGrafica({ sensorInfo, area, fechIniGraf, fechFinGraf }){
     // Valores del sensor desglosados
-    const sensorNom = sensorInfo.split(";")[0];
-    const sensorID = sensorInfo.split(";")[1];
-    const sensorUni = sensorInfo.split(";")[2];
+    //const sensorNom = sensorInfo.split(";")[0];
+    const sensorID = (sensorInfo == null) ? "" : sensorInfo.split(";")[1];
+    //const sensorUni = sensorInfo.split(";")[2];
     // Variable de estado con los registros del sensor en la BD
     const [regsBD, setRegsBD] = useState([]);
+    const [grafica, setGrafica] = useState(objGrafica(" ; ; ", area, []));
     let regsGraf = [];
 
     useEffect(() => {
-        const consulVals = async() => {
+        async function getRegistros(){
             try {
-                console.log("Datos de la peticion; Sensor: " + sensorInfo +"; Fecha Inicio: "+ fechIniGraf +"; Fecha Final: "+ fechFinGraf)
-                const peticion = await axios.get(`http://localhost/Proyectos_Propios/BuildContiBack/index.php?tipo_consulta=historicoEspeci&sen_name=${sensorID}&fechaIni=${fechIniGraf}&fechaFin=${fechFinGraf}`);
+                const peticion = await axios.get(`http://localhost/Proyectos/BuildContiBack/index.php?tipo_consulta=historicoEspeci&sen_name=${sensorID}&fechaIni=${fechIniGraf}&fechaFin=${fechFinGraf}`);
                 // Si la peticion de busqueda se hizo correctamente, aqui se obtendra la informacion resultante
-                const datos = peticion.data;
+                const datos = await peticion.data;
                 setRegsBD(
                     datos.map((registro) => ({
                         ID: parseInt(`${registro.ID}`),
@@ -32,7 +32,8 @@ export default function Grafica({ sensorInfo, fechIniGraf, fechFinGraf, iconCarg
                         STATUS: (`${registro.STATUS_TAG}`==="{ok}") ? "Activo" : (`${registro.STATUS_TAG}`==="{down}") ? "Inactivo" : "Indefinido"
                     }))
                 );
-            }catch(error){
+                console.log(regsBD);
+            } catch (error) {
                 // Si ocurrio un error en la peticion de busqueda se mostrará aqui
                 if(error.response){
                     // Primer caso, el servidor no encontro la informacion de los sensores (Error contemplado)
@@ -46,26 +47,62 @@ export default function Grafica({ sensorInfo, fechIniGraf, fechFinGraf, iconCarg
                 }
             }
         }
-        consulVals();
-    }, []);
+        
+        function filtrarDatos(){
+            // Obteniendo solo los valores de lo registros para enviar a la grafica
+            const arrRegsVals = regsBD.map(registro => (registro.VALUE));
+        
+            // Filtrado de valores; Obtencion de las cantidades a evaluar
+            let promedio = arrRegsVals.reduce((suma, valActu) => suma + valActu, 0) / arrRegsVals.length;
+            // Valor porcentual establecido para contemplar diferencia
+            const porcenDif = 0.25;
+            // Valores maximo y minimo de diferencia para el filtrado
+            let difInfe = promedio - (promedio * porcenDif), difSupe = promedio + (promedio * porcenDif);
+            // Buscando los registros que sean mayores, menores o iguales a las diferencias contempladas para el muestreo
+            regsBD.map((registro) => {
+                const fecha = registro.DATE, valor = registro.VALUE;
+    
+                if(valor <= difInfe || valor >= difSupe){
+                    regsGraf.push([fecha, valor]);
+                }
+            });
+        }
+    
+        // Caso posterior al inicial, puesto que al entrar no se ha seleccionado nada, se mandan como nulls las props
+        if((sensorInfo != null) && (fechIniGraf != null) && (fechFinGraf != null)){
+            // Obtener y establecer los registros dentro de rango temporal de la grafica (filtrado de servidor)
+            getRegistros();
+            // Filtrar los datos de muestreo para la grafica
+            filtrarDatos();
+            // Retorno de grafica llena de informacion
+            setGrafica(sensorInfo, area, regsGraf);
+        }/*else{
+            // Retorno de grafica vacia
+            return objGrafica(" ; ; ", area, []);
+        }*/
 
-    // Obteniendo los valores para enviar a la grafica
-    const arrValsProm = regsBD.map((registro) => (
-        (fechIniGraf <= registro.DATE <= fechFinGraf) ? (registro.VALUE) : null
-    ));
+    },[]);
 
-    if(arrValsProm.length > 0){
-        const promedio = parseFloat((arrValsProm.reduce((valPrev, valAct) => valAct += valPrev) / arrValsProm.length).toFixed(2));
-        regsBD.map((registro) => {
-            const fecha = registro.DATE, valor = registro.VALUE;
-            
-            if(valor > promedio)
-                regsGraf.push([fecha, valor]);
-            return 0;
-        })
-    }
+    /*console.log("Datos de la peticion; Sensor: " + sensorInfo +"; Fecha Inicio: "+ fechIniGraf +"; Fecha Final: "+ fechFinGraf)
+
+    
+
+    useEffect(() => {
+        
+    },[])*/
+}
+
+function objGrafica({ sensorInfo, areaGrafica, registros }){
+    // Valores del sensor desglosados
+    const sensorNom = (typeof(sensorInfo) == "undefined") ? "" : sensorInfo.split(";")[0];
+    //const sensorID = sensorInfo.split(";")[1];
+    const sensorUni = (typeof(sensorInfo) == "undefined") ? "" : sensorInfo.split(";")[2];
 
     const options = {
+        series: [{
+            name: `Registro ${sensorNom}`,
+            data: registros
+        }],
         chart: {
             animations: {
                 initialAnimation: {
@@ -79,10 +116,9 @@ export default function Grafica({ sensorInfo, fechIniGraf, fechFinGraf, iconCarg
                         title: 'Exportar a PDF',
                         class: 'custom-icon',
                         click: async function exportPDF(){
-                            const areaExportar = document.getElementById("areaGraf");
-                            const contePDF = await html2canvas(areaExportar);
+                            const contePDF = await html2canvas(areaGrafica);
                             const dataInfo = contePDF.toDataURL("image/png");
-                            let ancho = areaExportar.clientWidth, alto = areaExportar.clientHeight, altoEspa, anchoEspa;
+                            let ancho = areaGrafica.clientWidth, alto = areaGrafica.clientHeight, altoEspa, anchoEspa;
                             if(ancho > alto){
                                 let pdfArchi = new jsPDF('l', 'px', [ancho, alto]);
                                 ancho=pdfArchi.internal.pageSize.getWidth();
@@ -113,26 +149,8 @@ export default function Grafica({ sensorInfo, fechIniGraf, fechFinGraf, iconCarg
                         filename: `BMS Grafica de ${getFecha()}; Registros ${sensorNom}`
                     }
                 }
-            },
-            events: {
-                updated: function (chartContext, config) {
-                    iconCarga = (
-                        <div className='col-sm-auto'>
-                            <div className='row justify-content-center align-items-center'>
-                                <span>Cargando...</span>
-                            </div>
-                            <div className='row justify-content-center align-items-center'>
-                                <FontAwesomeIcon icon={faSpinner} size='2x' spin/>
-                            </div>
-                        </div>
-                    );
-                }
             }
         },
-        series: [{
-            name: `Registro ${sensorNom}`,
-            data: regsGraf
-        }],
         xaxis: {
             type: 'datetime',
             labels: {
@@ -183,11 +201,11 @@ export default function Grafica({ sensorInfo, fechIniGraf, fechFinGraf, iconCarg
     };
 
     return(
-        <Chart options={options} series={options.series} type="line" width="100%" height="280%" />
+        <Chart options={options} series={options.series} type="line" width="100%" height="100%" />
     );
 }
 
-/**
+/** 
  * @returns {string} Fecha Formateada en estilo YYYY-MM-DD_hh.mm
  */
 function getFecha() {

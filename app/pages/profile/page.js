@@ -89,7 +89,7 @@ export default function PerfilPage() {
         navegar.push("/");
     }else{
         // Pasar hacia un objeto JSON los elementos del localStorage
-        session = JSON.parse(usSession);
+        session = JSON.parse(usSession);    
         // Obteniendo los valores del localStorage del usuario para mostrar en la credencial
         nomVal = session.nameUs;
         userVal = session.info;

@@ -214,7 +214,7 @@ export default function LoginPage(){
      * @param {string} usPass Contraseña del Usuario */
     async function buscarUsuario(dirEma, usPass){
         try {
-            const consulta = await axios.post('http://localhost/Proyectos_Propios/BuildContiBack/index.php',{
+            const consulta = await axios.post('http://localhost/Proyectos/BuildContiBack/index.php',{
                 tipo_consulta: 'buscarUsuario',
                 correo: dirEma,
                 contra: usPass
@@ -247,7 +247,7 @@ export default function LoginPage(){
      * @param {string} fechAcc Fecha del cliente en su ultimo acceso */
     async function setAcceso(email, fechAcc){
         try {
-            const consulta = await axios.post('http://localhost/Proyectos_Propios/BuildContiBack/index.php',{
+            const consulta = await axios.post('http://localhost/Proyectos/BuildContiBack/index.php',{
                 tipo_consulta: 'addLastAccess',
                 emaUser: email,
                 ultimoAcceso: fechAcc

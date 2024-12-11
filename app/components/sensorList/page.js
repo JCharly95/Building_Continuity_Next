@@ -29,7 +29,7 @@ export default function Lista_Sensores_NRegistrados({ selSenNRegi }){
     useEffect(() => {
         async function consulSenso(){
             try {
-                const peticion = await axios.get('http://localhost/Proyectos_Propios/BuildContiBack/index.php?tipo_consulta=senNoRegi');
+                const peticion = await axios.get('http://localhost/Proyectos/BuildContiBack/index.php?tipo_consulta=senNoRegi');
                 const datos = peticion.data;
                 setListaSenso(
                     datos.map((sensor) => ({

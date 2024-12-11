@@ -1,45 +1,51 @@
-'use client';
+"use client";
 import axios from "axios";
+import React, { useState } from "react";
+import Calendario from "../calendar/page";
 import "bootstrap/dist/css/bootstrap.min.css";
-import React, { useState, useRef } from "react";
-import Lista_Sensores from "../sensorList/page";
-import { AlertTriangle, AlertCircle } from 'react-feather';
+import { AlertTriangle } from "react-feather";
+import Lista_Filtros from "../filterList/page";
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Alert } from "reactstrap";
 
-export default function Agregar_Sensor(){
-    // Establecer la variable de busqueda del sensor en la base de datos que sera seleccionada en una lista desplegable
-    const [sensor, setSensor] = useState("No hay Sensor");
+export default function Menu_Selector_Grafica({ infoSensor, fechaIniSel, fechaFinSel }){
     // Constante de estado para establecer la apertura o cierre del modal
     const [modal, setModal] = useState(false);
-    // Variable de estado para la apertura o cierre del modal de avisos
-    const [modalAdv, setModalAdv] = useState(false);
-    // Variable de estado para el control de los mensajes de errores en el modal de errores
-    const [modalMsg, setModalMsg] = useState("Hubo un problema al registrar el sensor");
     // Variable de estado para el modal de errores
     const [modalError, setModalError] = useState(false);
-    // Variable de referencia para obtener el campo de texto de creacion de sensor
-    const nomRef = useRef(null);
+    // Variable de estado para el control de los mensajes de errores en el modal de errores
+    const [modalMsg, setModalMsg] = useState("Favor de revisar la información seleccionada");
+    // Establecer las variables de las fechas
+    const [fechIni, setFechIni] = useState(Date.now());
+    const [fechFin, setFechFin] = useState(Date.now());
+    // Establecer la variable de busqueda de datos (el filtro que se usara con la lista desplegable)
+    const [sensoSel, setSensoSel] = useState("404");
 
     // Abrir/Cerrar el modal
-    function OpenCloseModal() {
-        setModal(!modal);
-    }
+    const OpenCloseModal = () => setModal(!modal);
     // Abrir/Cerrar modal de errores
-    function OpenCloseError() {
-        setModalError(!modalError);
-    }
+    const OpenCloseError = () => setModalError(!modalError);
     // Abrir/Cerrar modal de avisos
-    function OpenCloseAvisos(){
-        setModalAdv(!modalAdv);
+    const OpenCloseAvisos = () => setModalAdv(!modalAdv);
+    
+    // Funcion para setear el tipo de dato a buscar en la grafica; Este dato es retornado por la lista de seleccion
+    const sensorSelec = (sensorBus) => {
+        setTipInfoBus(sensorBus);
+    };
+
+    // Funcion para la obtencion del valor de la fecha de inicio
+    const fechaInicio = (valFechIni) => {
+        const fechIniConv = Math.floor(new Date(valFechIni).getTime()/1000.0);
+        setFechIni(fechIniConv);
     }
 
-    // Funcion para la obtencion del identificador del sensor a registrar
-    function nueSensor(senIngre){
-        setSensor(senIngre);
+    // Funcion para la obtencion del valor de la fecha de inicio
+    const fechaFinal = (valFechFin) => {
+        const fechFinConv = Math.floor(new Date(valFechFin).getTime()/1000.0);
+        setFechFin(fechFinConv);
     }
 
     // Funcion para crear agregar sensores al arreglo de valores de seleccion para la grafica
-    function crearSensor(evento){
+    function estableBusq(evento){
         // Evitar el envio por defecto del formulario
         evento.preventDefault();
         // Evaluacion de campos del formulario
@@ -60,40 +66,33 @@ export default function Agregar_Sensor(){
     return(
         <section>
             <div className="text-center">
-                <Button color="dark" onClick={OpenCloseModal}>
-                    <span>Agregar Filtro De Busqueda</span>
+                <Button color="green btn-outline-success" onClick={OpenCloseModal}>
+                    <span>Configurar Información Grafica</span>
                 </Button>
             </div>
             <Modal isOpen={modal} toggle={OpenCloseModal}>
                 <ModalHeader toggle={OpenCloseModal}>
-                    Agregar un Sensor a la Lista de Seleccion
+                    Seleccione los parametros de busqueda para la grafica
                 </ModalHeader>
                 <ModalBody>
                     <form onSubmit={crearSensor}>
                         <div className="form-group">
-                            <label htmlFor="nombre-filtro" className="col-form-label">Nombre:</label>
-                            <input type="text" className="form-control" ref={nomRef} id="nombre-filtro" name="nombre" />
+                            <Lista_Filtros selSenBus={sensorSelec} />
                         </div>
                         <div className="form-group">
-                            <label htmlFor="sensor-value" className="col-form-label">Sensores en el Sistema:</label>
-                            <Lista_Sensores id="sensor-value" name="valor" selSenNRegi={nueSensor} className="form-control" />
+                            <span>Seleccionar Fecha y Hora de Inicio:</span>
+                            <Calendario valorSel={fechaInicio} tipoCal={"Inicio"} />
+                        </div>
+                        <div className="form-group">
+                            <span>Seleccionar Fecha y Hora de Fin:</span>
+                            <Calendario valorSel={fechaFinal} tipoCal={"Final"} />
                         </div>
                     </form>
                 </ModalBody>
                 <ModalFooter>
-                    <Button color="success" type="submit" onClick={crearSensor}>Agregar Sensor</Button>
+                    <Button color="success" type="submit" onClick={estableBusq}>Confirmar Selección</Button>
                     <Button color="danger" onClick={OpenCloseModal}>Cancelar</Button>
                 </ModalFooter>
-            </Modal>
-            <Modal isOpen={modalAdv} toggle={OpenCloseAvisos}>
-                <ModalHeader toggle={OpenCloseAvisos}>
-                    <AlertCircle color="blue" size={30} /> Proceso Finalizado
-                </ModalHeader>
-                <ModalBody>
-                    <Alert color="success">
-                        El sensor fue registrado satisfactoriamente
-                    </Alert>
-                </ModalBody>
             </Modal>
             <Modal isOpen={modalError} toggle={OpenCloseError}>
                 <ModalHeader toggle={OpenCloseError}>
@@ -111,7 +110,7 @@ export default function Agregar_Sensor(){
     // Funcion asincrona de registro de valores
     async function regiSensor(nomSenso, idSensor){
         try {
-            const consulta = await axios.post('http://localhost/Proyectos_Propios/BuildContiBack/index.php',{
+            const consulta = await axios.post('http://localhost/Proyectos/BuildContiBack/index.php',{
                 tipo_consulta: 'agreNueSen',
                 nombre: nomSenso,
                 valor: idSensor

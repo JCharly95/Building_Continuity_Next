@@ -29,7 +29,7 @@ export default function Lista_Filtros_Grafica({ selSenBus }){
     useEffect(() => {
         async function consulSenso(){
             try {
-                const peticion = await axios.get('http://localhost/Proyectos_Propios/BuildContiBack/index.php?tipo_consulta=senRegi');
+                const peticion = await axios.get('http://localhost/Proyectos/BuildContiBack/index.php?tipo_consulta=senRegi');
                 const datos = peticion.data;
                 setListaSenso(
                     datos.map(

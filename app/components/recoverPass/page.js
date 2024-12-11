@@ -262,7 +262,7 @@ export default function RecuPassPage(){
      * @param {string} contra Contraseña Ingresada */
     async function recuperarContra(codigo, nombre, apePat, apeMat, correo, contra){
         try {
-            const consulta = await axios.post('http://localhost/Proyectos_Propios/BuildContiBack/index.php',{
+            const consulta = await axios.post('http://localhost/Proyectos/BuildContiBack/index.php',{
                 tipo_consulta: 'recuContra',
                 codigoUser: codigo,
                 nombrePer: nombre,
