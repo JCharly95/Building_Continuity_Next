@@ -1,9 +1,10 @@
-import './globals.css';
-import React from 'react';
-import { Inter } from 'next/font/google';
-import Pie_Page from './components/footer/page';
+import "./globals.css";
+import { Inter } from "next/font/google";
+import Pie_Pagina from "./components/ui/pie";
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({
+    subsets: ['latin']
+});
 
 export const metadata = {
     title: 'Building Continuity',
@@ -12,10 +13,10 @@ export const metadata = {
 
 export default function RootLayout({ children }){
     return(
-        <html lang='es'>
-            <body className={inter.className}>
+        <html lang="es">
+            <body className={`${inter.className} w-full h-full flex flex-col items-center justify-center`}>
                 { children }
-                <Pie_Page />
+                <Pie_Pagina />
             </body>
         </html>
     );
